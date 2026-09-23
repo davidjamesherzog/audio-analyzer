@@ -1,1 +1,260 @@
-// app global css in SCSS form
+body {
+  background:
+    radial-gradient(circle at top left, rgba(250, 214, 165, 0.4), transparent 32%),
+    radial-gradient(circle at top right, rgba(103, 160, 174, 0.22), transparent 28%),
+    linear-gradient(180deg, #f6f1e8 0%, #ede6d8 100%);
+  color: #1f2933;
+  font-family: 'Avenir Next', 'Segoe UI', sans-serif;
+}
+
+#q-app {
+  min-height: 100vh;
+}
+
+.app-header {
+  background: rgba(24, 39, 52, 0.92);
+  backdrop-filter: blur(14px);
+}
+
+.app-toolbar {
+  min-height: 78px;
+  padding: 0 24px;
+}
+
+.app-toolbar__title {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.app-toolbar__title small {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.analyzer-page {
+  padding: 32px 20px 48px;
+}
+
+.analyzer-shell {
+  margin: 0 auto;
+  max-width: 1180px;
+}
+
+.hero-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(280px, 0.9fr);
+  gap: 24px;
+  align-items: stretch;
+  margin-bottom: 24px;
+}
+
+.hero-copy,
+.picker-panel,
+.info-card {
+  background: rgba(255, 252, 246, 0.82);
+  border: 1px solid rgba(38, 70, 83, 0.12);
+  border-radius: 28px;
+  box-shadow: 0 18px 45px rgba(69, 54, 37, 0.1);
+}
+
+.hero-copy {
+  padding: 32px;
+}
+
+.picker-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  justify-content: center;
+  padding: 28px;
+}
+
+.eyebrow {
+  margin: 0 0 10px;
+  color: #a85f2d;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.hero-copy h1 {
+  margin: 0;
+  color: #1d2d35;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(2.1rem, 4vw, 4rem);
+  font-weight: 700;
+  line-height: 1.02;
+}
+
+.hero-text {
+  margin: 18px 0 0;
+  max-width: 48rem;
+  color: #465965;
+  font-size: 1.02rem;
+  line-height: 1.7;
+}
+
+.hidden-file-input {
+  display: none;
+}
+
+.selected-file {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.selected-file__label {
+  color: #6b7280;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.selected-file__name {
+  font-size: 1rem;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.info-card {
+  overflow: hidden;
+}
+
+.section-heading {
+  margin-bottom: 20px;
+}
+
+.section-heading h2 {
+  margin: 0 0 6px;
+  color: #21333e;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.section-heading p {
+  margin: 0;
+  color: #5e6e78;
+  line-height: 1.55;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin: 0;
+}
+
+.stat-tile {
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.68);
+  border: 1px solid rgba(38, 70, 83, 0.1);
+  border-radius: 18px;
+}
+
+.stat-tile dt {
+  margin-bottom: 8px;
+  color: #70808b;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.stat-tile dd {
+  margin: 0;
+  color: #1e2f39;
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.audio-player {
+  width: 100%;
+}
+
+.channel-list {
+  display: grid;
+  gap: 16px;
+}
+
+.channel-card {
+  padding: 18px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(38, 70, 83, 0.1);
+  border-radius: 20px;
+}
+
+.channel-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.channel-card__header h3 {
+  margin: 0;
+  color: #233742;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.meter-group + .meter-group {
+  margin-top: 14px;
+}
+
+.meter-row {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  color: #314650;
+}
+
+.meter-row strong {
+  display: block;
+  font-size: 1rem;
+}
+
+.meter-label {
+  display: block;
+  margin-bottom: 2px;
+  color: #6d7d87;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 900px) {
+  .hero-panel,
+  .content-grid,
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .analyzer-page {
+    padding: 24px 14px 40px;
+  }
+
+  .hero-copy,
+  .picker-panel {
+    padding: 24px;
+  }
+}

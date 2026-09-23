@@ -1,43 +1,63 @@
 <template>
-  <q-page class="row items-center justify-evenly">
-    <example-component
-      title="Example component"
-      active
-      :todos="todos"
-      :meta="meta"
-    ></example-component>
+  <q-page class="analyzer-page">
+    <div class="analyzer-shell">
+      <section class="hero-panel">
+        <div class="hero-copy">
+          <p class="eyebrow">Local Audio Inspection</p>
+          <h1 data-testid="page-title">Pick a file and inspect its signal data in the browser.</h1>
+          <p class="hero-text">
+            The app decodes the selected audio file locally and reports file metadata, duration,
+            sample rate, channel count, peak level, and RMS level.
+          </p>
+        </div>
+
+        <audio-file-picker
+          :selected-file="selectedFile"
+          :error-message="errorMessage"
+          :is-analyzing="isAnalyzing"
+          @file-selected="analyzeFile"
+        />
+      </section>
+
+      <section v-if="selectedFile" data-testid="file-content" class="content-grid">
+        <stats-card
+          title="File details"
+          description="Basic metadata from the selected file."
+          :items="fileStats"
+        />
+        <audio-preview-card v-if="previewUrl" :source="previewUrl" />
+      </section>
+
+      <section v-if="analysis" data-testid="analysis-content" class="content-grid">
+        <stats-card
+          title="Overall analysis"
+          description="Decoded PCM data measured after loading the file into Web Audio."
+          :items="overallAnalysisStats"
+        />
+        <channel-levels-card
+          :channels="analysis.channelAnalyses"
+          :channel-count="analysis.numberOfChannels"
+        />
+      </section>
+    </div>
   </q-page>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import type { Todo, Meta } from 'components/models'
-import ExampleComponent from 'components/ExampleComponent.vue'
+import AudioFilePicker from 'src/components/audio/AudioFilePicker.vue'
+import AudioPreviewCard from 'src/components/audio/AudioPreviewCard.vue'
+import ChannelLevelsCard from 'src/components/audio/ChannelLevelsCard.vue'
+import StatsCard from 'src/components/audio/StatsCard.vue'
+import { useAudioAnalyzer } from 'src/composables/useAudioAnalyzer'
 
-const todos = ref<Todo[]>([
-  {
-    id: 1,
-    content: 'ct1',
-  },
-  {
-    id: 2,
-    content: 'ct2',
-  },
-  {
-    id: 3,
-    content: 'ct3',
-  },
-  {
-    id: 4,
-    content: 'ct4',
-  },
-  {
-    id: 5,
-    content: 'ct5',
-  },
-])
-
-const meta = ref<Meta>({
-  totalCount: 1200,
-})
+const {
+  analysis,
+  analyzeFile,
+  errorMessage,
+  fileStats,
+  isAnalyzing,
+  overallAnalysisStats,
+  previewUrl,
+  selectedFile,
+} = useAudioAnalyzer()
 </script>
