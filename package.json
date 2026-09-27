@@ -21,6 +21,8 @@
   },
   "dependencies": {
     "@quasar/extras": "^1.16.4",
+    "demucs-web": "^1.0.2",
+    "onnxruntime-web": "^1.30.0",
     "pinia": "^3.0.1",
     "quasar": "^2.16.0",
     "vue": "^3.5.22",

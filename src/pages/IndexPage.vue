@@ -38,6 +38,14 @@
           :channels="analysis.channelAnalyses"
           :channel-count="analysis.numberOfChannels"
         />
+        <vocal-extraction-card
+          :download-name="vocalDownloadName"
+          :is-extracting="isExtractingVocals"
+          :progress="vocalExtractionProgress"
+          :source="vocalPreviewUrl"
+          :status="vocalExtractionStatus"
+          @extract="extractVocals"
+        />
       </section>
     </div>
   </q-page>
@@ -48,16 +56,23 @@ import AudioFilePicker from 'src/components/audio/AudioFilePicker.vue'
 import AudioPreviewCard from 'src/components/audio/AudioPreviewCard.vue'
 import ChannelLevelsCard from 'src/components/audio/ChannelLevelsCard.vue'
 import StatsCard from 'src/components/audio/StatsCard.vue'
+import VocalExtractionCard from 'src/components/audio/VocalExtractionCard.vue'
 import { useAudioAnalyzer } from 'src/composables/useAudioAnalyzer'
 
 const {
   analysis,
   analyzeFile,
   errorMessage,
+  extractVocals,
   fileStats,
   isAnalyzing,
+  isExtractingVocals,
   overallAnalysisStats,
   previewUrl,
   selectedFile,
+  vocalDownloadName,
+  vocalExtractionProgress,
+  vocalExtractionStatus,
+  vocalPreviewUrl,
 } = useAudioAnalyzer()
 </script>

@@ -5,6 +5,15 @@ const lifecycle = vi.hoisted(() => ({
   unmount: undefined as (() => void) | undefined,
 }))
 
+const separateVocalStem = vi.hoisted(() =>
+  vi.fn((_audio: AudioBuffer, onProgress?: (value: unknown) => void) => {
+    onProgress?.({ phase: 'separation', progress: 1, message: 'Separating vocals (1/1)…' })
+    return Promise.resolve(new Blob(['vocal wav'], { type: 'audio/wav' }))
+  }),
+)
+
+vi.mock('src/utils/demucs-separation', () => ({ separateVocalStem }))
+
 vi.mock('vue', async (importOriginal) => {
   const vue = await importOriginal<typeof VueModule>()
 
@@ -66,6 +75,7 @@ function installAudioContext(decodedAudio = createDecodedAudio()) {
 
 beforeEach(() => {
   lifecycle.unmount = undefined
+  separateVocalStem.mockClear()
   revokeObjectURL.mockReset()
   vi.stubGlobal('URL', {
     createObjectURL: vi.fn((file: File) => `blob:${file.name}`),
@@ -87,6 +97,8 @@ describe('useAudioAnalyzer', () => {
     expect(analyzer.previewUrl.value).toBeNull()
     expect(analyzer.errorMessage.value).toBe('')
     expect(analyzer.isAnalyzing.value).toBe(false)
+    expect(analyzer.isExtractingVocals.value).toBe(false)
+    expect(analyzer.vocalPreviewUrl.value).toBeNull()
     expect(analyzer.fileStats.value).toEqual([])
     expect(analyzer.overallAnalysisStats.value).toEqual([])
   })
@@ -141,6 +153,30 @@ describe('useAudioAnalyzer', () => {
     expect(analyzer.errorMessage.value).toBe('Unsupported audio data')
     expect(analyzer.isAnalyzing.value).toBe(false)
     expect(close).toHaveBeenCalledOnce()
+  })
+
+  test('extracts a downloadable vocal WAV and replaces its previous URL', async () => {
+    installAudioContext()
+    const urlMock = vi.mocked(URL)
+    urlMock.createObjectURL.mockImplementation((value: Blob | MediaSource) =>
+      value instanceof Blob ? 'blob:vocals' : 'blob:audio',
+    )
+    const analyzer = useAudioAnalyzer()
+
+    await analyzer.analyzeFile(createFile({ name: 'my.song.mp3' }))
+    await analyzer.extractVocals()
+
+    expect(analyzer.vocalPreviewUrl.value).toBe('blob:vocals')
+    expect(analyzer.vocalDownloadName.value).toBe('my.song-vocals.wav')
+    expect(analyzer.isExtractingVocals.value).toBe(false)
+    expect(analyzer.vocalExtractionProgress.value).toBe(1)
+    expect(analyzer.vocalExtractionStatus.value).toBe('Vocal stem ready.')
+    expect(separateVocalStem).toHaveBeenCalledOnce()
+
+    await analyzer.analyzeFile(createFile({ name: 'next.wav' }))
+
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:vocals')
+    expect(analyzer.vocalPreviewUrl.value).toBeNull()
   })
 
   test('reports when Web Audio is unavailable', async () => {
