@@ -1,11 +1,18 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
 
 import { analyzeDecodedAudio, type AudioAnalysisSummary } from 'src/utils/audio-analysis'
-import { separateVocalStem } from 'src/utils/demucs-separation'
+import { separateAudioStems, type StemBlobs, type StemName } from 'src/utils/demucs-separation'
 
 export interface StatItem {
   label: string
   value: string
+}
+
+export interface StemPreview {
+  downloadName: string
+  label: string
+  name: StemName
+  source: string
 }
 
 type WebkitWindow = Window &
@@ -14,6 +21,12 @@ type WebkitWindow = Window &
   }
 
 const numberFormatter = new Intl.NumberFormat('en-US')
+const stemDefinitions: Array<{ label: string; name: StemName }> = [
+  { label: 'Vocals', name: 'vocals' },
+  { label: 'Drums', name: 'drums' },
+  { label: 'Bass', name: 'bass' },
+  { label: 'Other instruments', name: 'other' },
+]
 
 export function useAudioAnalyzer() {
   const selectedFile = ref<File | null>(null)
@@ -21,18 +34,25 @@ export function useAudioAnalyzer() {
   const previewUrl = ref<string | null>(null)
   const errorMessage = ref('')
   const isAnalyzing = ref(false)
-  const isExtractingVocals = ref(false)
-  const vocalPreviewUrl = ref<string | null>(null)
-  const vocalExtractionProgress = ref<number | null>(null)
-  const vocalExtractionStatus = ref('')
+  const isSeparatingStems = ref(false)
+  const stemPreviewUrls = ref<Partial<Record<StemName, string>>>({})
+  const stemSeparationProgress = ref<number | null>(null)
+  const stemSeparationStatus = ref('')
   const decodedAudio = ref<AudioBuffer | null>(null)
 
-  const vocalDownloadName = computed(() => {
+  const sourceBaseName = computed(() => {
     const fileName = selectedFile.value?.name ?? 'audio'
     const extensionIndex = fileName.lastIndexOf('.')
-    const baseName = extensionIndex > 0 ? fileName.slice(0, extensionIndex) : fileName
+    return extensionIndex > 0 ? fileName.slice(0, extensionIndex) : fileName
+  })
 
-    return `${baseName}-vocals.wav`
+  const stemPreviews = computed<StemPreview[]>(() => {
+    return stemDefinitions.flatMap(({ label, name }) => {
+      const source = stemPreviewUrls.value[name]
+      return source
+        ? [{ downloadName: `${sourceBaseName.value}-${name}.wav`, label, name, source }]
+        : []
+    })
   })
 
   const fileStats = computed<StatItem[]>(() => {
@@ -75,7 +95,7 @@ export function useAudioAnalyzer() {
     errorMessage.value = ''
     analysis.value = null
     decodedAudio.value = null
-    setVocalPreviewUrl(null)
+    setStemPreviewUrls(null)
     setPreviewUrl(URL.createObjectURL(nextFile))
     isAnalyzing.value = true
 
@@ -101,30 +121,31 @@ export function useAudioAnalyzer() {
     }
   }
 
-  async function extractVocals() {
+  async function extractStems() {
     if (!decodedAudio.value) {
-      errorMessage.value = 'Choose and decode an audio file before extracting vocals.'
+      errorMessage.value = 'Choose and decode an audio file before separating stems.'
       return
     }
 
     errorMessage.value = ''
-    isExtractingVocals.value = true
-    vocalExtractionProgress.value = null
-    vocalExtractionStatus.value = 'Preparing the separation model…'
+    isSeparatingStems.value = true
+    stemSeparationProgress.value = null
+    stemSeparationStatus.value = 'Preparing the separation model…'
 
     try {
-      const vocalWav = await separateVocalStem(decodedAudio.value, (progress) => {
-        vocalExtractionProgress.value = progress.progress
-        vocalExtractionStatus.value = progress.message
+      const stems = await separateAudioStems(decodedAudio.value, (progress) => {
+        stemSeparationProgress.value = progress.progress
+        stemSeparationStatus.value = progress.message
       })
-      setVocalPreviewUrl(URL.createObjectURL(vocalWav))
-      vocalExtractionProgress.value = 1
-      vocalExtractionStatus.value = 'Vocal stem ready.'
+      setStemPreviewUrls(stems)
+      stemSeparationProgress.value = 1
+      stemSeparationStatus.value = 'Audio stems ready.'
     } catch (error) {
-      setVocalPreviewUrl(null)
-      errorMessage.value = error instanceof Error ? error.message : 'The vocal track could not be created.'
+      setStemPreviewUrls(null)
+      errorMessage.value =
+        error instanceof Error ? error.message : 'The audio stems could not be created.'
     } finally {
-      isExtractingVocals.value = false
+      isSeparatingStems.value = false
     }
   }
 
@@ -136,34 +157,40 @@ export function useAudioAnalyzer() {
     previewUrl.value = nextUrl
   }
 
-  function setVocalPreviewUrl(nextUrl: string | null) {
-    if (vocalPreviewUrl.value) {
-      URL.revokeObjectURL(vocalPreviewUrl.value)
+  function setStemPreviewUrls(stems: StemBlobs | null) {
+    for (const url of Object.values(stemPreviewUrls.value)) {
+      URL.revokeObjectURL(url)
     }
 
-    vocalPreviewUrl.value = nextUrl
+    stemPreviewUrls.value = stems
+      ? {
+          bass: URL.createObjectURL(stems.bass),
+          drums: URL.createObjectURL(stems.drums),
+          other: URL.createObjectURL(stems.other),
+          vocals: URL.createObjectURL(stems.vocals),
+        }
+      : {}
   }
 
   onBeforeUnmount(() => {
     setPreviewUrl(null)
-    setVocalPreviewUrl(null)
+    setStemPreviewUrls(null)
   })
 
   return {
     analysis,
     analyzeFile,
     errorMessage,
-    extractVocals,
+    extractStems,
     fileStats,
     isAnalyzing,
-    isExtractingVocals,
+    isSeparatingStems,
     overallAnalysisStats,
     previewUrl,
     selectedFile,
-    vocalDownloadName,
-    vocalExtractionProgress,
-    vocalExtractionStatus,
-    vocalPreviewUrl,
+    stemPreviews,
+    stemSeparationProgress,
+    stemSeparationStatus,
   }
 }
 

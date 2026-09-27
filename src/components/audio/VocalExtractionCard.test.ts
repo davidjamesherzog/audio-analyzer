@@ -6,10 +6,9 @@ import { describe, expect, test } from 'vitest'
 import VocalExtractionCard from './VocalExtractionCard.vue'
 
 const defaultProps = {
-  downloadName: 'track-vocals.wav',
   isExtracting: false,
   progress: null,
-  source: null,
+  stems: [],
   status: '',
 }
 
@@ -43,17 +42,17 @@ describe('VocalExtractionCard', () => {
     const wrapper = mountCard()
     const button = wrapper.getComponent({ name: 'QBtn' })
 
-    expect(wrapper.get('h2').text()).toBe('Vocal stem')
+    expect(wrapper.get('h2').text()).toBe('Separated stems')
     expect(wrapper.get('.vocal-note').text()).toContain(
       'The first extraction downloads an approximately 172 MB model.',
     )
     expect(button.props()).toMatchObject({
       disable: false,
-      label: 'Extract vocals',
+      label: 'Separate stems',
       loading: false,
     })
     expect(wrapper.find('[data-testid="vocal-progress"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="vocal-result"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="stem-results"]').exists()).toBe(false)
 
     await button.trigger('click')
 
@@ -93,21 +92,53 @@ describe('VocalExtractionCard', () => {
     expect(wrapper.findComponent({ name: 'QLinearProgress' }).exists()).toBe(false)
   })
 
-  test('renders the vocal preview and download attributes when a result is ready', () => {
+  test('renders previews and download attributes for all separated stems', () => {
     const wrapper = mountCard({
-      downloadName: 'my-song-vocals.wav',
-      source: 'blob:vocal-preview',
+      stems: [
+        {
+          downloadName: 'my-song-vocals.wav',
+          label: 'Vocals',
+          name: 'vocals',
+          source: 'blob:vocals',
+        },
+        {
+          downloadName: 'my-song-drums.wav',
+          label: 'Drums',
+          name: 'drums',
+          source: 'blob:drums',
+        },
+        {
+          downloadName: 'my-song-bass.wav',
+          label: 'Bass',
+          name: 'bass',
+          source: 'blob:bass',
+        },
+        {
+          downloadName: 'my-song-other.wav',
+          label: 'Other instruments',
+          name: 'other',
+          source: 'blob:other',
+        },
+      ],
       status: 'Vocal stem ready.',
     })
-    const audio = wrapper.get<HTMLAudioElement>('[data-testid="vocal-audio-player"]')
+    const results = wrapper.findAll('.stem-result')
+    const audio = results[0]?.get<HTMLAudioElement>('audio')
     const buttons = wrapper.findAllComponents({ name: 'QBtn' })
     const download = buttons[1]
 
-    expect(audio.attributes('src')).toBe('blob:vocal-preview')
+    expect(results).toHaveLength(4)
+    expect(results.map((result) => result.get('h3').text())).toEqual([
+      'Vocals',
+      'Drums',
+      'Bass',
+      'Other instruments',
+    ])
+    expect(audio?.attributes('src')).toBe('blob:vocals')
     expect(download?.props()).toMatchObject({
       download: 'my-song-vocals.wav',
-      href: 'blob:vocal-preview',
-      label: 'Download vocal WAV',
+      href: 'blob:vocals',
+      label: 'Download Vocals WAV',
     })
   })
 })

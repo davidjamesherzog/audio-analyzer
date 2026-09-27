@@ -193,10 +193,25 @@ body {
   color: #58351f;
 }
 
-.vocal-result {
+.stem-results {
   display: grid;
   gap: 16px;
   margin-top: 20px;
+}
+
+.stem-result {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.68);
+  border: 1px solid rgba(38, 70, 83, 0.1);
+  border-radius: 18px;
+}
+
+.stem-result h3 {
+  margin: 0;
+  color: #233742;
+  font-size: 1.05rem;
 }
 
 .vocal-progress {

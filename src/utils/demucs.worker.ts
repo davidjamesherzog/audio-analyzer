@@ -1,7 +1,7 @@
 import type { DemucsProcessor as DemucsProcessorType } from 'demucs-web'
 import standardWasmUrl from 'onnxruntime-web/ort-wasm-simd-threaded.wasm?url'
 
-import type { SeparationProgress } from './demucs-separation'
+import type { SeparationProgress, StemBlobs } from './demucs-separation'
 import { encodeStereoWav } from './vocal-extraction'
 
 interface SeparationRequest {
@@ -31,26 +31,28 @@ async function separate(request: SeparationRequest) {
     const left = resampleLinear(request.left, request.sampleRate, demucs.CONSTANTS.SAMPLE_RATE)
     const right = resampleLinear(request.right, request.sampleRate, demucs.CONSTANTS.SAMPLE_RATE)
 
-    report({ phase: 'separation', progress: 0, message: 'Separating vocals…' })
+    report({ phase: 'separation', progress: 0, message: 'Separating audio stems…' })
     const result = await processor.separate(left, right)
-    const blob = encodeStereoWav(
-      result.vocals.left,
-      result.vocals.right,
-      demucs.CONSTANTS.SAMPLE_RATE,
-    )
+    const stems: StemBlobs = {
+      bass: encodeStereoWav(result.bass.left, result.bass.right, demucs.CONSTANTS.SAMPLE_RATE),
+      drums: encodeStereoWav(result.drums.left, result.drums.right, demucs.CONSTANTS.SAMPLE_RATE),
+      other: encodeStereoWav(result.other.left, result.other.right, demucs.CONSTANTS.SAMPLE_RATE),
+      vocals: encodeStereoWav(
+        result.vocals.left,
+        result.vocals.right,
+        demucs.CONSTANTS.SAMPLE_RATE,
+      ),
+    }
 
-    self.postMessage({ type: 'result', requestId: request.requestId, blob })
+    self.postMessage({ type: 'result', requestId: request.requestId, stems })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'The vocal stem could not be created.'
+    const message = error instanceof Error ? error.message : 'The audio stems could not be created.'
     self.postMessage({ type: 'error', requestId: request.requestId, message })
   }
 }
 
 async function createProcessor(): Promise<DemucsProcessorType> {
-  const [ort, demucs] = await Promise.all([
-    import('onnxruntime-web/wasm'),
-    import('demucs-web'),
-  ])
+  const [ort, demucs] = await Promise.all([import('onnxruntime-web/wasm'), import('demucs-web')])
   ort.env.wasm.numThreads = crossOriginIsolated
     ? Math.min(navigator.hardwareConcurrency || 1, 4)
     : 1
@@ -78,7 +80,7 @@ async function createProcessor(): Promise<DemucsProcessorType> {
       report({
         phase: 'separation',
         progress: info.progress,
-        message: `Separating vocals (${info.currentSegment}/${info.totalSegments})…`,
+        message: `Separating audio stems (${info.currentSegment}/${info.totalSegments})…`,
       })
     },
   })
@@ -116,8 +118,7 @@ function resampleLinear(input: Float32Array, sourceRate: number, targetRate: num
     const lowerIndex = Math.min(Math.floor(sourcePosition), input.length - 1)
     const upperIndex = Math.min(lowerIndex + 1, input.length - 1)
     const fraction = sourcePosition - lowerIndex
-    output[index] =
-      (input[lowerIndex] ?? 0) * (1 - fraction) + (input[upperIndex] ?? 0) * fraction
+    output[index] = (input[lowerIndex] ?? 0) * (1 - fraction) + (input[upperIndex] ?? 0) * fraction
   }
 
   return output

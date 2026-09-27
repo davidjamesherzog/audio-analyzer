@@ -2,10 +2,10 @@
   <q-card data-testid="vocal-extraction-card" flat bordered class="info-card">
     <q-card-section>
       <div class="section-heading">
-        <h2>Vocal stem</h2>
+        <h2>Separated stems</h2>
         <p>
-          Use the Demucs source-separation model to split vocals from the instrumental mix.
-          Processing stays on this device.
+          Use the Demucs source-separation model to split vocals, drums, bass, and other
+          instruments. Processing stays on this device.
         </p>
       </div>
 
@@ -15,10 +15,10 @@
       </q-banner>
 
       <q-btn
-        data-testid="extract-vocals-button"
+        data-testid="extract-stems-button"
         color="secondary"
         icon="graphic_eq"
-        label="Extract vocals"
+        label="Separate stems"
         no-caps
         unelevated
         :loading="isExtracting"
@@ -38,29 +38,37 @@
         <span>{{ status }}</span>
       </div>
 
-      <div v-if="source" data-testid="vocal-result" class="vocal-result">
-        <audio data-testid="vocal-audio-player" class="audio-player" controls :src="source"></audio>
-        <q-btn
-          data-testid="download-vocals-button"
-          color="primary"
-          icon="download"
-          label="Download vocal WAV"
-          no-caps
-          outline
-          :href="source"
-          :download="downloadName"
-        />
+      <div v-if="stems.length" data-testid="stem-results" class="stem-results">
+        <section
+          v-for="stem in stems"
+          :key="stem.name"
+          :data-testid="`stem-result-${stem.name}`"
+          class="stem-result"
+        >
+          <h3>{{ stem.label }}</h3>
+          <audio class="audio-player" controls :src="stem.source"></audio>
+          <q-btn
+            color="primary"
+            icon="download"
+            :label="`Download ${stem.label} WAV`"
+            no-caps
+            outline
+            :href="stem.source"
+            :download="stem.downloadName"
+          />
+        </section>
       </div>
     </q-card-section>
   </q-card>
 </template>
 
 <script setup lang="ts">
+import type { StemPreview } from 'src/composables/useAudioAnalyzer'
+
 defineProps<{
-  downloadName: string
   isExtracting: boolean
   progress: number | null
-  source: string | null
+  stems: StemPreview[]
   status: string
 }>()
 

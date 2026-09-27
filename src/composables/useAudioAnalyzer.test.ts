@@ -7,14 +7,19 @@ const lifecycle = vi.hoisted(() => ({
   unmount: undefined as (() => void) | undefined,
 }))
 
-const separateVocalStem = vi.hoisted(() =>
+const separateAudioStems = vi.hoisted(() =>
   vi.fn((_audio: AudioBuffer, onProgress?: (value: unknown) => void) => {
-    onProgress?.({ phase: 'separation', progress: 1, message: 'Separating vocals (1/1)…' })
-    return Promise.resolve(new Blob(['vocal wav'], { type: 'audio/wav' }))
+    onProgress?.({ phase: 'separation', progress: 1, message: 'Separating audio stems (1/1)…' })
+    return Promise.resolve({
+      bass: new Blob(['bass wav'], { type: 'audio/wav' }),
+      drums: new Blob(['drums wav'], { type: 'audio/wav' }),
+      other: new Blob(['other wav'], { type: 'audio/wav' }),
+      vocals: new Blob(['vocal wav'], { type: 'audio/wav' }),
+    })
   }),
 )
 
-vi.mock('src/utils/demucs-separation', () => ({ separateVocalStem }))
+vi.mock('src/utils/demucs-separation', () => ({ separateAudioStems }))
 
 vi.mock('vue', async (importOriginal) => {
   const vue = await importOriginal<typeof VueModule>()
@@ -30,6 +35,7 @@ vi.mock('vue', async (importOriginal) => {
 import { useAudioAnalyzer } from './useAudioAnalyzer'
 
 const revokeObjectURL = vi.fn()
+let stemUrlIndex = 0
 
 interface TestFileOptions {
   name?: string
@@ -77,10 +83,13 @@ function installAudioContext(decodedAudio = createDecodedAudio()) {
 
 beforeEach(() => {
   lifecycle.unmount = undefined
-  separateVocalStem.mockClear()
+  separateAudioStems.mockClear()
   revokeObjectURL.mockReset()
+  stemUrlIndex = 0
   vi.stubGlobal('URL', {
-    createObjectURL: vi.fn((file: File) => `blob:${file.name}`),
+    createObjectURL: vi.fn((value: Blob) => {
+      return 'name' in value ? `blob:${String(value.name)}` : `blob:stem-${++stemUrlIndex}`
+    }),
     revokeObjectURL,
   })
 })
@@ -99,8 +108,8 @@ describe('useAudioAnalyzer', () => {
     expect(analyzer.previewUrl.value).toBeNull()
     expect(analyzer.errorMessage.value).toBe('')
     expect(analyzer.isAnalyzing.value).toBe(false)
-    expect(analyzer.isExtractingVocals.value).toBe(false)
-    expect(analyzer.vocalPreviewUrl.value).toBeNull()
+    expect(analyzer.isSeparatingStems.value).toBe(false)
+    expect(analyzer.stemPreviews.value).toEqual([])
     expect(analyzer.fileStats.value).toEqual([])
     expect(analyzer.overallAnalysisStats.value).toEqual([])
   })
@@ -157,28 +166,54 @@ describe('useAudioAnalyzer', () => {
     expect(close).toHaveBeenCalledOnce()
   })
 
-  test('extracts a downloadable vocal WAV and replaces its previous URL', async () => {
+  test('extracts downloadable WAVs for all stems and replaces their previous URLs', async () => {
     installAudioContext()
-    const urlMock = vi.mocked(URL)
-    urlMock.createObjectURL.mockImplementation((value: Blob | MediaSource) =>
-      value instanceof Blob ? 'blob:vocals' : 'blob:audio',
-    )
     const analyzer = useAudioAnalyzer()
 
     await analyzer.analyzeFile(createFile({ name: 'my.song.mp3' }))
-    await analyzer.extractVocals()
+    await analyzer.extractStems()
 
-    expect(analyzer.vocalPreviewUrl.value).toBe('blob:vocals')
-    expect(analyzer.vocalDownloadName.value).toBe('my.song-vocals.wav')
-    expect(analyzer.isExtractingVocals.value).toBe(false)
-    expect(analyzer.vocalExtractionProgress.value).toBe(1)
-    expect(analyzer.vocalExtractionStatus.value).toBe('Vocal stem ready.')
-    expect(separateVocalStem).toHaveBeenCalledOnce()
+    expect(analyzer.stemPreviews.value).toEqual([
+      {
+        downloadName: 'my.song-vocals.wav',
+        label: 'Vocals',
+        name: 'vocals',
+        source: 'blob:stem-4',
+      },
+      {
+        downloadName: 'my.song-drums.wav',
+        label: 'Drums',
+        name: 'drums',
+        source: 'blob:stem-2',
+      },
+      {
+        downloadName: 'my.song-bass.wav',
+        label: 'Bass',
+        name: 'bass',
+        source: 'blob:stem-1',
+      },
+      {
+        downloadName: 'my.song-other.wav',
+        label: 'Other instruments',
+        name: 'other',
+        source: 'blob:stem-3',
+      },
+    ])
+    expect(analyzer.isSeparatingStems.value).toBe(false)
+    expect(analyzer.stemSeparationProgress.value).toBe(1)
+    expect(analyzer.stemSeparationStatus.value).toBe('Audio stems ready.')
+    expect(separateAudioStems).toHaveBeenCalledOnce()
+
+    analyzer.selectedFile.value = createFile({ name: 'recording' })
+    expect(analyzer.stemPreviews.value[0]?.downloadName).toBe('recording-vocals.wav')
+    analyzer.selectedFile.value = null
+    expect(analyzer.stemPreviews.value[0]?.downloadName).toBe('audio-vocals.wav')
 
     await analyzer.analyzeFile(createFile({ name: 'next.wav' }))
 
-    expect(revokeObjectURL).toHaveBeenCalledWith('blob:vocals')
-    expect(analyzer.vocalPreviewUrl.value).toBeNull()
+    expect(revokeObjectURL).toHaveBeenCalledTimes(5)
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:stem-4')
+    expect(analyzer.stemPreviews.value).toEqual([])
   })
 
   test('reports when Web Audio is unavailable', async () => {
@@ -212,8 +247,6 @@ describe('useAudioAnalyzer', () => {
   test('formats file metadata across size, type, and file-name boundaries', () => {
     const analyzer = useAudioAnalyzer()
 
-    expect(analyzer.vocalDownloadName.value).toBe('audio-vocals.wav')
-
     analyzer.selectedFile.value = createFile({ name: 'recording', size: 0, type: 'audio/custom' })
     expect(analyzer.fileStats.value).toEqual(
       expect.arrayContaining([
@@ -221,7 +254,6 @@ describe('useAudioAnalyzer', () => {
         { label: 'Size', value: '0 B' },
       ]),
     )
-    expect(analyzer.vocalDownloadName.value).toBe('recording-vocals.wav')
 
     analyzer.selectedFile.value = createFile({ name: '', size: 512 })
     expect(analyzer.fileStats.value).toEqual(
@@ -238,7 +270,6 @@ describe('useAudioAnalyzer', () => {
         { label: 'Size', value: '10 KB' },
       ]),
     )
-    expect(analyzer.vocalDownloadName.value).toBe('.hidden-vocals.wav')
 
     analyzer.selectedFile.value = createFile({ size: 5 * 1024 ** 4 })
     expect(analyzer.fileStats.value).toEqual(
@@ -307,52 +338,46 @@ describe('useAudioAnalyzer', () => {
     )
   })
 
-  test('requires decoded audio before extracting vocals', async () => {
+  test('requires decoded audio before separating stems', async () => {
     const analyzer = useAudioAnalyzer()
 
-    await analyzer.extractVocals()
+    await analyzer.extractStems()
 
     expect(analyzer.errorMessage.value).toBe(
-      'Choose and decode an audio file before extracting vocals.',
+      'Choose and decode an audio file before separating stems.',
     )
-    expect(separateVocalStem).not.toHaveBeenCalled()
+    expect(separateAudioStems).not.toHaveBeenCalled()
   })
 
   test.each([
     [new Error('Separation failed'), 'Separation failed'],
-    ['unstructured extraction failure', 'The vocal track could not be created.'],
-  ])('cleans up after vocal extraction failure %#', async (failure, expectedMessage) => {
+    ['unstructured extraction failure', 'The audio stems could not be created.'],
+  ])('cleans up after stem separation failure %#', async (failure, expectedMessage) => {
     installAudioContext()
-    const urlMock = vi.mocked(URL)
-    urlMock.createObjectURL.mockImplementation((value: Blob | MediaSource) =>
-      value instanceof Blob ? 'blob:vocals' : 'blob:audio',
-    )
     const analyzer = useAudioAnalyzer()
     await analyzer.analyzeFile(createFile())
-    await analyzer.extractVocals()
-    separateVocalStem.mockRejectedValueOnce(failure)
+    await analyzer.extractStems()
+    separateAudioStems.mockRejectedValueOnce(failure)
 
-    await analyzer.extractVocals()
+    await analyzer.extractStems()
 
-    expect(revokeObjectURL).toHaveBeenCalledWith('blob:vocals')
-    expect(analyzer.vocalPreviewUrl.value).toBeNull()
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:stem-4')
+    expect(analyzer.stemPreviews.value).toEqual([])
     expect(analyzer.errorMessage.value).toBe(expectedMessage)
-    expect(analyzer.isExtractingVocals.value).toBe(false)
+    expect(analyzer.isSeparatingStems.value).toBe(false)
   })
 
-  test('revokes a vocal preview URL when the owner unmounts', async () => {
+  test('revokes all stem preview URLs when the owner unmounts', async () => {
     installAudioContext()
-    const urlMock = vi.mocked(URL)
-    urlMock.createObjectURL.mockImplementation((value: Blob | MediaSource) =>
-      value instanceof Blob ? 'blob:vocals' : 'blob:audio',
-    )
     const analyzer = useAudioAnalyzer()
     await analyzer.analyzeFile(createFile())
-    await analyzer.extractVocals()
+    await analyzer.extractStems()
 
     lifecycle.unmount?.()
 
-    expect(revokeObjectURL).toHaveBeenCalledWith('blob:vocals')
-    expect(analyzer.vocalPreviewUrl.value).toBeNull()
+    expect(revokeObjectURL).toHaveBeenCalledTimes(5)
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:stem-1')
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:stem-4')
+    expect(analyzer.stemPreviews.value).toEqual([])
   })
 })
