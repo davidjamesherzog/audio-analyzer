@@ -10,16 +10,23 @@ import type { AudioAnalysisSummary } from 'src/utils/audio-analysis'
 import IndexPage from './IndexPage.vue'
 
 const analyzeFile = vi.fn()
+const extractVocals = vi.fn()
 
 const analyzer = {
   analysis: ref<AudioAnalysisSummary | null>(null),
   analyzeFile,
   errorMessage: ref(''),
+  extractVocals,
   fileStats: ref<StatItem[]>([]),
   isAnalyzing: ref(false),
+  isExtractingVocals: ref(false),
   overallAnalysisStats: ref<StatItem[]>([]),
   previewUrl: ref<string | null>(null),
   selectedFile: ref<File | null>(null),
+  vocalDownloadName: ref('audio-vocals.wav'),
+  vocalExtractionProgress: ref<number | null>(null),
+  vocalExtractionStatus: ref(''),
+  vocalPreviewUrl: ref<string | null>(null),
 }
 
 vi.mock('src/composables/useAudioAnalyzer', () => ({
@@ -52,6 +59,14 @@ function mountPage() {
     global: {
       stubs: {
         QPage: { template: '<main class="q-page"><slot /></main>' },
+        QBanner: { template: '<div class="q-banner"><slot /></div>' },
+        QBtn: {
+          emits: ['click'],
+          template: '<button class="q-btn" type="button" @click="$emit(\'click\')"><slot /></button>',
+        },
+        QCard: { template: '<section class="q-card"><slot /></section>' },
+        QCardSection: { template: '<div class="q-card-section"><slot /></div>' },
+        QLinearProgress: { template: '<div class="q-linear-progress" />' },
         AudioFilePicker: {
           name: 'AudioFilePicker',
           props: ['selectedFile', 'errorMessage', 'isAnalyzing'],
@@ -83,10 +98,16 @@ beforeEach(() => {
   analyzer.errorMessage.value = ''
   analyzer.fileStats.value = []
   analyzer.isAnalyzing.value = false
+  analyzer.isExtractingVocals.value = false
   analyzer.overallAnalysisStats.value = []
   analyzer.previewUrl.value = null
   analyzer.selectedFile.value = null
+  analyzer.vocalDownloadName.value = 'audio-vocals.wav'
+  analyzer.vocalExtractionProgress.value = null
+  analyzer.vocalExtractionStatus.value = ''
+  analyzer.vocalPreviewUrl.value = null
   analyzeFile.mockReset()
+  extractVocals.mockReset()
 })
 
 describe('IndexPage', () => {
