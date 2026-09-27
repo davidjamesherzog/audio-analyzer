@@ -44,4 +44,24 @@ describe('audio-analysis', () => {
     expect(summary.channelAnalyses[1]?.peakAmplitude).toBe(0.75)
     expect(summary.channelAnalyses[1]?.rmsAmplitude).toBeCloseTo(0.559, 3)
   })
+
+  test('summarizes empty silent audio without dividing by zero', () => {
+    const summary = analyzeDecodedAudio(createDecodedAudio([[]]))
+
+    expect(summary.frameCount).toBe(0)
+    expect(summary.sampleCount).toBe(0)
+    expect(summary.peakAmplitude).toBe(0)
+    expect(summary.peakDbfs).toBeNull()
+    expect(summary.rmsAmplitude).toBe(0)
+    expect(summary.rmsDbfs).toBeNull()
+    expect(summary.channelAnalyses).toEqual([
+      {
+        channelNumber: 1,
+        peakAmplitude: 0,
+        peakDbfs: null,
+        rmsAmplitude: 0,
+        rmsDbfs: null,
+      },
+    ])
+  })
 })
