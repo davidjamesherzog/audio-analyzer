@@ -39,12 +39,12 @@
           :channel-count="analysis.numberOfChannels"
         />
         <vocal-extraction-card
-          :download-name="vocalDownloadName"
-          :is-extracting="isExtractingVocals"
-          :progress="vocalExtractionProgress"
-          :source="vocalPreviewUrl"
-          :status="vocalExtractionStatus"
-          @extract="extractVocals"
+          :is-extracting="isSeparatingStems"
+          :progress="stemSeparationProgress"
+          :stems="stemPreviews"
+          :status="stemSeparationStatus"
+          @extract="extractStems"
+          @export="exportStems"
         />
       </section>
     </div>
@@ -63,16 +63,16 @@ const {
   analysis,
   analyzeFile,
   errorMessage,
-  extractVocals,
+  exportStems,
+  extractStems,
   fileStats,
   isAnalyzing,
-  isExtractingVocals,
+  isSeparatingStems,
   overallAnalysisStats,
   previewUrl,
   selectedFile,
-  vocalDownloadName,
-  vocalExtractionProgress,
-  vocalExtractionStatus,
-  vocalPreviewUrl,
+  stemPreviews,
+  stemSeparationProgress,
+  stemSeparationStatus,
 } = useAudioAnalyzer()
 </script>

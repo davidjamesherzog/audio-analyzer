@@ -193,10 +193,66 @@ body {
   color: #58351f;
 }
 
-.vocal-result {
+.stem-selection {
+  margin: 0 0 18px;
+  padding: 0;
+  border: 0;
+}
+
+.stem-selection legend {
+  color: #233742;
+  font-weight: 700;
+}
+
+.stem-selection p {
+  margin: 4px 0 10px;
+  color: #5e6e78;
+  font-size: 0.9rem;
+}
+
+.stem-selection__options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+
+.stem-results {
   display: grid;
   gap: 16px;
   margin-top: 20px;
+}
+
+.stem-result {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.68);
+  border: 1px solid rgba(38, 70, 83, 0.1);
+  border-radius: 18px;
+}
+
+.stem-result h3 {
+  margin: 0;
+  color: #233742;
+  font-size: 1.05rem;
+}
+
+.stem-export-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.stem-export-controls h3,
+.stem-export-controls p {
+  margin: 0;
+}
+
+.stem-export-controls p {
+  margin-top: 4px;
+  color: #5e6e78;
+  font-size: 0.9rem;
 }
 
 .vocal-progress {

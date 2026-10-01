@@ -4,28 +4,31 @@ export interface SeparationProgress {
   message: string
 }
 
+export type StemName = 'bass' | 'drums' | 'other' | 'vocals'
+export type StemBlobs = Record<StemName, Blob>
+
 type ProgressCallback = (progress: SeparationProgress) => void
 
 type WorkerResponse =
   | { type: 'progress'; requestId: number; progress: SeparationProgress }
-  | { type: 'result'; requestId: number; blob: Blob }
+  | { type: 'result'; requestId: number; stems: StemBlobs }
   | { type: 'error'; requestId: number; message: string }
 
 interface PendingRequest {
   onProgress: ProgressCallback
   reject: (reason: Error) => void
-  resolve: (blob: Blob) => void
+  resolve: (stems: StemBlobs) => void
 }
 
 let worker: Worker | null = null
 let nextRequestId = 0
 const pendingRequests = new Map<number, PendingRequest>()
 
-/** Runs HTDemucs in a worker and returns its stereo vocal stem as a WAV. */
-export function separateVocalStem(
+/** Runs HTDemucs in a worker and returns each stereo stem as a WAV. */
+export function separateAudioStems(
   audio: AudioBuffer,
   onProgress: ProgressCallback = () => undefined,
-): Promise<Blob> {
+): Promise<StemBlobs> {
   const requestId = ++nextRequestId
   const left = audio.getChannelData(0).slice()
   const right = (
@@ -49,7 +52,9 @@ function getWorker(): Worker {
   worker = new Worker(new URL('./demucs.worker.ts', import.meta.url), { type: 'module' })
   worker.addEventListener('message', handleWorkerMessage)
   worker.addEventListener('error', (event) => {
-    rejectAllRequests(new Error(event.message || 'The vocal separation worker stopped unexpectedly.'))
+    rejectAllRequests(
+      new Error(event.message || 'The audio separation worker stopped unexpectedly.'),
+    )
     worker?.terminate()
     worker = null
   })
@@ -73,7 +78,7 @@ function handleWorkerMessage(event: MessageEvent<WorkerResponse>) {
   pendingRequests.delete(message.requestId)
 
   if (message.type === 'result') {
-    pending.resolve(message.blob)
+    pending.resolve(message.stems)
   } else {
     pending.reject(new Error(message.message))
   }

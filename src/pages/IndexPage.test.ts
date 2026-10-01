@@ -4,29 +4,30 @@ import { mount } from '@vue/test-utils'
 import { ref } from 'vue'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 
-import type { StatItem } from 'src/composables/useAudioAnalyzer'
+import type { StatItem, StemPreview } from 'src/composables/useAudioAnalyzer'
 import type { AudioAnalysisSummary } from 'src/utils/audio-analysis'
 
 import IndexPage from './IndexPage.vue'
 
 const analyzeFile = vi.fn()
-const extractVocals = vi.fn()
+const extractStems = vi.fn()
+const exportStems = vi.fn()
 
 const analyzer = {
   analysis: ref<AudioAnalysisSummary | null>(null),
   analyzeFile,
   errorMessage: ref(''),
-  extractVocals,
+  exportStems,
+  extractStems,
   fileStats: ref<StatItem[]>([]),
   isAnalyzing: ref(false),
-  isExtractingVocals: ref(false),
+  isSeparatingStems: ref(false),
   overallAnalysisStats: ref<StatItem[]>([]),
   previewUrl: ref<string | null>(null),
   selectedFile: ref<File | null>(null),
-  vocalDownloadName: ref('audio-vocals.wav'),
-  vocalExtractionProgress: ref<number | null>(null),
-  vocalExtractionStatus: ref(''),
-  vocalPreviewUrl: ref<string | null>(null),
+  stemPreviews: ref<StemPreview[]>([]),
+  stemSeparationProgress: ref<number | null>(null),
+  stemSeparationStatus: ref(''),
 }
 
 vi.mock('src/composables/useAudioAnalyzer', () => ({
@@ -62,10 +63,12 @@ function mountPage() {
         QBanner: { template: '<div class="q-banner"><slot /></div>' },
         QBtn: {
           emits: ['click'],
-          template: '<button class="q-btn" type="button" @click="$emit(\'click\')"><slot /></button>',
+          template:
+            '<button class="q-btn" type="button" @click="$emit(\'click\')"><slot /></button>',
         },
         QCard: { template: '<section class="q-card"><slot /></section>' },
         QCardSection: { template: '<div class="q-card-section"><slot /></div>' },
+        QCheckbox: { template: '<label class="q-checkbox" />' },
         QLinearProgress: { template: '<div class="q-linear-progress" />' },
         AudioFilePicker: {
           name: 'AudioFilePicker',
@@ -98,16 +101,16 @@ beforeEach(() => {
   analyzer.errorMessage.value = ''
   analyzer.fileStats.value = []
   analyzer.isAnalyzing.value = false
-  analyzer.isExtractingVocals.value = false
+  analyzer.isSeparatingStems.value = false
   analyzer.overallAnalysisStats.value = []
   analyzer.previewUrl.value = null
   analyzer.selectedFile.value = null
-  analyzer.vocalDownloadName.value = 'audio-vocals.wav'
-  analyzer.vocalExtractionProgress.value = null
-  analyzer.vocalExtractionStatus.value = ''
-  analyzer.vocalPreviewUrl.value = null
+  analyzer.stemPreviews.value = []
+  analyzer.stemSeparationProgress.value = null
+  analyzer.stemSeparationStatus.value = ''
   analyzeFile.mockReset()
-  extractVocals.mockReset()
+  extractStems.mockReset()
+  exportStems.mockReset()
 })
 
 describe('IndexPage', () => {
@@ -180,6 +183,17 @@ describe('IndexPage', () => {
     })
     expect(levels.props('channels')).toEqual(analysis.channelAnalyses)
     expect(levels.props('channelCount')).toBe(1)
+  })
+
+  test('passes selected stem exports to the analyzer', async () => {
+    analyzer.analysis.value = analysis
+    const wrapper = mountPage()
+    const extraction = wrapper.getComponent({ name: 'VocalExtractionCard' })
+
+    extraction.vm.$emit('export', ['drums', 'other'])
+    await wrapper.vm.$nextTick()
+
+    expect(exportStems).toHaveBeenCalledWith(['drums', 'other'])
   })
 
   test('does not show an audio preview until a preview URL exists', () => {
