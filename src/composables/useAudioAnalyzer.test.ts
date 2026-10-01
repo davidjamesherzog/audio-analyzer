@@ -178,7 +178,7 @@ describe('useAudioAnalyzer', () => {
         downloadName: 'my.song-vocals.wav',
         label: 'Vocals',
         name: 'vocals',
-        source: 'blob:stem-4',
+        source: 'blob:stem-1',
       },
       {
         downloadName: 'my.song-drums.wav',
@@ -190,13 +190,13 @@ describe('useAudioAnalyzer', () => {
         downloadName: 'my.song-bass.wav',
         label: 'Bass',
         name: 'bass',
-        source: 'blob:stem-1',
+        source: 'blob:stem-3',
       },
       {
         downloadName: 'my.song-other.wav',
         label: 'Other instruments',
         name: 'other',
-        source: 'blob:stem-3',
+        source: 'blob:stem-4',
       },
     ])
     expect(analyzer.isSeparatingStems.value).toBe(false)
@@ -212,8 +212,50 @@ describe('useAudioAnalyzer', () => {
     await analyzer.analyzeFile(createFile({ name: 'next.wav' }))
 
     expect(revokeObjectURL).toHaveBeenCalledTimes(5)
-    expect(revokeObjectURL).toHaveBeenCalledWith('blob:stem-4')
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:stem-1')
     expect(analyzer.stemPreviews.value).toEqual([])
+  })
+
+  test('downloads only the selected separated stems', async () => {
+    installAudioContext()
+    const click = vi.fn()
+    const createElement = vi.fn(() => ({ click, download: '', href: '' }))
+    vi.stubGlobal('document', { createElement })
+    const analyzer = useAudioAnalyzer()
+
+    await analyzer.analyzeFile(createFile({ name: 'mix.wav' }))
+    await analyzer.extractStems()
+    analyzer.exportStems(['vocals', 'bass'])
+
+    expect(createElement).toHaveBeenCalledTimes(2)
+    expect(click).toHaveBeenCalledTimes(2)
+    expect(createElement.mock.results.map(({ value }) => value)).toEqual([
+      { click, download: 'mix-vocals.wav', href: 'blob:stem-1' },
+      { click, download: 'mix-bass.wav', href: 'blob:stem-3' },
+    ])
+  })
+
+  test('creates previews only for tracks chosen before separation', async () => {
+    installAudioContext()
+    const analyzer = useAudioAnalyzer()
+
+    await analyzer.analyzeFile(createFile({ name: 'mix.wav' }))
+    await analyzer.extractStems(['drums', 'other'])
+
+    expect(analyzer.stemPreviews.value).toEqual([
+      {
+        downloadName: 'mix-drums.wav',
+        label: 'Drums',
+        name: 'drums',
+        source: 'blob:stem-1',
+      },
+      {
+        downloadName: 'mix-other.wav',
+        label: 'Other instruments',
+        name: 'other',
+        source: 'blob:stem-2',
+      },
+    ])
   })
 
   test('reports when Web Audio is unavailable', async () => {

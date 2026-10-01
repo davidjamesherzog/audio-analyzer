@@ -44,6 +44,7 @@
           :stems="stemPreviews"
           :status="stemSeparationStatus"
           @extract="extractStems"
+          @export="exportStems"
         />
       </section>
     </div>
@@ -62,6 +63,7 @@ const {
   analysis,
   analyzeFile,
   errorMessage,
+  exportStems,
   extractStems,
   fileStats,
   isAnalyzing,

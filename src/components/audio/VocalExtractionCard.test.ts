@@ -27,6 +27,13 @@ function mountCard(props: Partial<InstanceType<typeof VocalExtractionCard>['$pro
         },
         QCard: { template: '<section class="q-card"><slot /></section>' },
         QCardSection: { template: '<div class="q-card-section"><slot /></div>' },
+        QCheckbox: {
+          name: 'QCheckbox',
+          props: ['modelValue', 'label', 'val'],
+          emits: ['update:modelValue'],
+          template:
+            '<label><input type="checkbox" :checked="modelValue.includes(val)" @change="$emit(\'update:modelValue\', modelValue.includes(val) ? modelValue.filter((item) => item !== val) : [...modelValue, val])" />{{ label }}</label>',
+        },
         QLinearProgress: {
           name: 'QLinearProgress',
           props: ['indeterminate', 'value'],
@@ -56,7 +63,7 @@ describe('VocalExtractionCard', () => {
 
     await button.trigger('click')
 
-    expect(wrapper.emitted('extract')).toEqual([[]])
+    expect(wrapper.emitted('extract')).toEqual([[['vocals', 'drums', 'bass', 'other']]])
   })
 
   test('shows indeterminate extraction progress and disables the action', () => {
@@ -125,7 +132,8 @@ describe('VocalExtractionCard', () => {
     const results = wrapper.findAll('.stem-result')
     const audio = results[0]?.get<HTMLAudioElement>('audio')
     const buttons = wrapper.findAllComponents({ name: 'QBtn' })
-    const download = buttons[1]
+    const exportButton = buttons[1]
+    const download = buttons[2]
 
     expect(results).toHaveLength(4)
     expect(results.map((result) => result.get('h3').text())).toEqual([
@@ -135,10 +143,53 @@ describe('VocalExtractionCard', () => {
       'Other instruments',
     ])
     expect(audio?.attributes('src')).toBe('blob:vocals')
+    expect(exportButton?.props()).toMatchObject({
+      label: 'Download 4 selected tracks',
+    })
     expect(download?.props()).toMatchObject({
       download: 'my-song-vocals.wav',
       href: 'blob:vocals',
       label: 'Download Vocals WAV',
     })
+  })
+
+  test('uses the choices made before separation and requires at least one track', async () => {
+    const wrapper = mountCard()
+    const checkboxes = wrapper.findAllComponents({ name: 'QCheckbox' })
+    const extractButton = wrapper.getComponent({ name: 'QBtn' })
+
+    await checkboxes[1]?.get('input').setValue(false)
+    await checkboxes[3]?.get('input').setValue(false)
+
+    await extractButton.trigger('click')
+    expect(wrapper.emitted('extract')).toEqual([[['vocals', 'bass']]])
+
+    await checkboxes[0]?.get('input').setValue(false)
+    await checkboxes[2]?.get('input').setValue(false)
+    expect(extractButton.props('disable')).toBe(true)
+  })
+
+  test('exports all of the stems returned for the prior selection', async () => {
+    const wrapper = mountCard({
+      stems: [
+        {
+          downloadName: 'song-drums.wav',
+          label: 'Drums',
+          name: 'drums',
+          source: 'blob:drums',
+        },
+        {
+          downloadName: 'song-other.wav',
+          label: 'Other instruments',
+          name: 'other',
+          source: 'blob:other',
+        },
+      ],
+    })
+    const exportButton = wrapper.findAllComponents({ name: 'QBtn' })[1]
+
+    expect(exportButton?.props('label')).toBe('Download 2 selected tracks')
+    await exportButton?.trigger('click')
+    expect(wrapper.emitted('export')).toEqual([[['drums', 'other']]])
   })
 })

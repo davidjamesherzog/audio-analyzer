@@ -121,7 +121,7 @@ export function useAudioAnalyzer() {
     }
   }
 
-  async function extractStems() {
+  async function extractStems(stemNames: StemName[] = stemDefinitions.map(({ name }) => name)) {
     if (!decodedAudio.value) {
       errorMessage.value = 'Choose and decode an audio file before separating stems.'
       return
@@ -137,7 +137,7 @@ export function useAudioAnalyzer() {
         stemSeparationProgress.value = progress.progress
         stemSeparationStatus.value = progress.message
       })
-      setStemPreviewUrls(stems)
+      setStemPreviewUrls(stems, stemNames)
       stemSeparationProgress.value = 1
       stemSeparationStatus.value = 'Audio stems ready.'
     } catch (error) {
@@ -149,6 +149,21 @@ export function useAudioAnalyzer() {
     }
   }
 
+  function exportStems(stemNames: StemName[]) {
+    const selectedNames = new Set(stemNames)
+
+    for (const stem of stemPreviews.value) {
+      if (!selectedNames.has(stem.name)) {
+        continue
+      }
+
+      const link = document.createElement('a')
+      link.href = stem.source
+      link.download = stem.downloadName
+      link.click()
+    }
+  }
+
   function setPreviewUrl(nextUrl: string | null) {
     if (previewUrl.value) {
       URL.revokeObjectURL(previewUrl.value)
@@ -157,18 +172,18 @@ export function useAudioAnalyzer() {
     previewUrl.value = nextUrl
   }
 
-  function setStemPreviewUrls(stems: StemBlobs | null) {
+  function setStemPreviewUrls(stems: StemBlobs | null, stemNames?: StemName[]) {
     for (const url of Object.values(stemPreviewUrls.value)) {
       URL.revokeObjectURL(url)
     }
 
     stemPreviewUrls.value = stems
-      ? {
-          bass: URL.createObjectURL(stems.bass),
-          drums: URL.createObjectURL(stems.drums),
-          other: URL.createObjectURL(stems.other),
-          vocals: URL.createObjectURL(stems.vocals),
-        }
+      ? Object.fromEntries(
+          (stemNames ?? stemDefinitions.map(({ name }) => name)).map((name) => [
+            name,
+            URL.createObjectURL(stems[name]),
+          ]),
+        )
       : {}
   }
 
@@ -181,6 +196,7 @@ export function useAudioAnalyzer() {
     analysis,
     analyzeFile,
     errorMessage,
+    exportStems,
     extractStems,
     fileStats,
     isAnalyzing,

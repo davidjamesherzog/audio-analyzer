@@ -14,6 +14,21 @@
         minutes, depending on the track and your device.
       </q-banner>
 
+      <fieldset class="stem-selection" :disabled="isExtracting">
+        <legend>Tracks to separate</legend>
+        <p>Choose the tracks you want before starting separation.</p>
+        <div class="stem-selection__options">
+          <q-checkbox
+            v-for="stem in availableStems"
+            :key="stem.name"
+            v-model="selectedStemNames"
+            :data-testid="`stem-selector-${stem.name}`"
+            :label="stem.label"
+            :val="stem.name"
+          />
+        </div>
+      </fieldset>
+
       <q-btn
         data-testid="extract-stems-button"
         color="secondary"
@@ -22,8 +37,8 @@
         no-caps
         unelevated
         :loading="isExtracting"
-        :disable="isExtracting"
-        @click="$emit('extract')"
+        :disable="isExtracting || selectedStemNames.length === 0"
+        @click="$emit('extract', selectedStemNames)"
       />
 
       <div v-if="isExtracting || status" data-testid="vocal-progress" class="vocal-progress">
@@ -39,6 +54,22 @@
       </div>
 
       <div v-if="stems.length" data-testid="stem-results" class="stem-results">
+        <div class="stem-export-controls">
+          <div>
+            <h3>Selected tracks are ready</h3>
+            <p>Preview each track below or download all of the chosen WAV files.</p>
+          </div>
+          <q-btn
+            data-testid="export-selected-button"
+            color="primary"
+            icon="download"
+            :label="exportButtonLabel"
+            no-caps
+            unelevated
+            @click="$emit('export', stems.map(({ name }) => name))"
+          />
+        </div>
+
         <section
           v-for="stem in stems"
           :key="stem.name"
@@ -63,9 +94,12 @@
 </template>
 
 <script setup lang="ts">
-import type { StemPreview } from 'src/composables/useAudioAnalyzer'
+import { computed, ref } from 'vue'
 
-defineProps<{
+import type { StemPreview } from 'src/composables/useAudioAnalyzer'
+import type { StemName } from 'src/utils/demucs-separation'
+
+const props = defineProps<{
   isExtracting: boolean
   progress: number | null
   stems: StemPreview[]
@@ -73,6 +107,19 @@ defineProps<{
 }>()
 
 defineEmits<{
-  extract: []
+  extract: [stemNames: StemName[]]
+  export: [stemNames: StemName[]]
 }>()
+
+const availableStems: Array<{ label: string; name: StemName }> = [
+  { label: 'Vocals', name: 'vocals' },
+  { label: 'Drums', name: 'drums' },
+  { label: 'Bass', name: 'bass' },
+  { label: 'Other instruments', name: 'other' },
+]
+const selectedStemNames = ref<StemName[]>(availableStems.map(({ name }) => name))
+const exportButtonLabel = computed(() => {
+  const count = props.stems.length
+  return `Download ${count} selected ${count === 1 ? 'track' : 'tracks'}`
+})
 </script>

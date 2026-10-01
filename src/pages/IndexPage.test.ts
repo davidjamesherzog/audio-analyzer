@@ -11,11 +11,13 @@ import IndexPage from './IndexPage.vue'
 
 const analyzeFile = vi.fn()
 const extractStems = vi.fn()
+const exportStems = vi.fn()
 
 const analyzer = {
   analysis: ref<AudioAnalysisSummary | null>(null),
   analyzeFile,
   errorMessage: ref(''),
+  exportStems,
   extractStems,
   fileStats: ref<StatItem[]>([]),
   isAnalyzing: ref(false),
@@ -66,6 +68,7 @@ function mountPage() {
         },
         QCard: { template: '<section class="q-card"><slot /></section>' },
         QCardSection: { template: '<div class="q-card-section"><slot /></div>' },
+        QCheckbox: { template: '<label class="q-checkbox" />' },
         QLinearProgress: { template: '<div class="q-linear-progress" />' },
         AudioFilePicker: {
           name: 'AudioFilePicker',
@@ -107,6 +110,7 @@ beforeEach(() => {
   analyzer.stemSeparationStatus.value = ''
   analyzeFile.mockReset()
   extractStems.mockReset()
+  exportStems.mockReset()
 })
 
 describe('IndexPage', () => {
@@ -179,6 +183,17 @@ describe('IndexPage', () => {
     })
     expect(levels.props('channels')).toEqual(analysis.channelAnalyses)
     expect(levels.props('channelCount')).toBe(1)
+  })
+
+  test('passes selected stem exports to the analyzer', async () => {
+    analyzer.analysis.value = analysis
+    const wrapper = mountPage()
+    const extraction = wrapper.getComponent({ name: 'VocalExtractionCard' })
+
+    extraction.vm.$emit('export', ['drums', 'other'])
+    await wrapper.vm.$nextTick()
+
+    expect(exportStems).toHaveBeenCalledWith(['drums', 'other'])
   })
 
   test('does not show an audio preview until a preview URL exists', () => {
