@@ -94,6 +94,18 @@ beforeEach(() => {
   mocks.ort.env.wasm.wasmPaths = {}
   mocks.loadModel.mockResolvedValue(undefined)
   mocks.separate.mockResolvedValue({
+    bass: {
+      left: new Float32Array([0.1, -0.1]),
+      right: new Float32Array([0.2, -0.2]),
+    },
+    drums: {
+      left: new Float32Array([0.3, -0.3]),
+      right: new Float32Array([0.4, -0.4]),
+    },
+    other: {
+      left: new Float32Array([0.15, -0.15]),
+      right: new Float32Array([0.35, -0.35]),
+    },
     vocals: {
       left: new Float32Array([0.25, -0.25]),
       right: new Float32Array([0.5, -0.5]),
@@ -112,7 +124,16 @@ describe('demucs worker', () => {
 
     await vi.waitFor(() => {
       expect(worker.postMessage).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'result', requestId: 7, blob: expect.any(Blob) }),
+        expect.objectContaining({
+          type: 'result',
+          requestId: 7,
+          stems: {
+            bass: expect.any(Blob),
+            drums: expect.any(Blob),
+            other: expect.any(Blob),
+            vocals: expect.any(Blob),
+          },
+        }),
       )
     })
     expect(mocks.DemucsProcessor).toHaveBeenCalledOnce()
@@ -137,7 +158,7 @@ describe('demucs worker', () => {
     expect(worker.postMessage).toHaveBeenCalledWith({
       type: 'progress',
       requestId: 7,
-      progress: { phase: 'separation', progress: 0, message: 'Separating vocals…' },
+      progress: { phase: 'separation', progress: 0, message: 'Separating audio stems…' },
     })
   })
 
@@ -194,7 +215,7 @@ describe('demucs worker', () => {
       progress: {
         phase: 'separation',
         progress: 0.5,
-        message: 'Separating vocals (2/4)…',
+        message: 'Separating audio stems (2/4)…',
       },
     })
   })
@@ -224,7 +245,7 @@ describe('demucs worker', () => {
       expect(worker.postMessage).toHaveBeenCalledWith({
         type: 'error',
         requestId: 11,
-        message: 'The vocal stem could not be created.',
+        message: 'The audio stems could not be created.',
       })
     })
 

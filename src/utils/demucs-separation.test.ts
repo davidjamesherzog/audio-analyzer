@@ -52,14 +52,14 @@ beforeEach(() => {
 
 describe('demucs separation', () => {
   test('posts copied stereo channels and transferable buffers to a module worker', async () => {
-    const { separateVocalStem } = await loadModule()
+    const { separateAudioStems } = await loadModule()
     const audio = createAudioBuffer([
       [0.1, 0.2],
       [0.3, 0.4],
     ])
     const sourceLeft = audio.getChannelData(0)
     const sourceRight = audio.getChannelData(1)
-    const promise = separateVocalStem(audio)
+    const promise = separateAudioStems(audio)
     const worker = workers[0]
 
     expect(WorkerMock).toHaveBeenCalledWith(expect.any(URL), { type: 'module' })
@@ -76,22 +76,22 @@ describe('demucs separation', () => {
     expect(message.right).not.toBe(sourceRight)
     expect(transfer).toEqual([message.left.buffer, message.right.buffer])
 
-    const blob = new Blob(['wav'], { type: 'audio/wav' })
+    const stems = createStemBlobs('result')
     worker?.dispatchMessage({
       type: 'progress',
       requestId: 1,
       progress: { phase: 'model', progress: 1, message: 'Ready' },
     })
-    worker?.dispatchMessage({ type: 'result', requestId: 1, blob })
-    await expect(promise).resolves.toBe(blob)
+    worker?.dispatchMessage({ type: 'result', requestId: 1, stems })
+    await expect(promise).resolves.toBe(stems)
   })
 
   test('duplicates mono audio, reuses the worker, and routes progress by request ID', async () => {
-    const { separateVocalStem } = await loadModule()
+    const { separateAudioStems } = await loadModule()
     const onFirstProgress = vi.fn()
     const onSecondProgress = vi.fn()
-    const first = separateVocalStem(createAudioBuffer([[0.25, -0.25]]), onFirstProgress)
-    const second = separateVocalStem(createAudioBuffer([[0.5]], 44_100), onSecondProgress)
+    const first = separateAudioStems(createAudioBuffer([[0.25, -0.25]]), onFirstProgress)
+    const second = separateAudioStems(createAudioBuffer([[0.5]], 44_100), onSecondProgress)
     const worker = workers[0]
     const firstMessage = worker?.postMessage.mock.calls[0]?.[0]
     const secondMessage = worker?.postMessage.mock.calls[1]?.[0]
@@ -119,17 +119,17 @@ describe('demucs separation', () => {
       message: 'Halfway',
     })
 
-    const firstBlob = new Blob(['first'])
-    const secondBlob = new Blob(['second'])
-    worker?.dispatchMessage({ type: 'result', requestId: 2, blob: secondBlob })
-    worker?.dispatchMessage({ type: 'result', requestId: 1, blob: firstBlob })
-    await expect(first).resolves.toBe(firstBlob)
-    await expect(second).resolves.toBe(secondBlob)
+    const firstStems = createStemBlobs('first')
+    const secondStems = createStemBlobs('second')
+    worker?.dispatchMessage({ type: 'result', requestId: 2, stems: secondStems })
+    worker?.dispatchMessage({ type: 'result', requestId: 1, stems: firstStems })
+    await expect(first).resolves.toBe(firstStems)
+    await expect(second).resolves.toBe(secondStems)
   })
 
   test('rejects a request when the worker reports a separation error', async () => {
-    const { separateVocalStem } = await loadModule()
-    const promise = separateVocalStem(createAudioBuffer([[0]]))
+    const { separateAudioStems } = await loadModule()
+    const promise = separateAudioStems(createAudioBuffer([[0]]))
 
     workers[0]?.dispatchMessage({ type: 'error', requestId: 1, message: 'Separation failed' })
 
@@ -138,23 +138,35 @@ describe('demucs separation', () => {
 
   test.each([
     ['Worker crashed', 'Worker crashed'],
-    ['', 'The vocal separation worker stopped unexpectedly.'],
-  ])('rejects all pending work after a worker failure with message %#', async (message, expected) => {
-    const { separateVocalStem } = await loadModule()
-    const first = separateVocalStem(createAudioBuffer([[0]]))
-    const second = separateVocalStem(createAudioBuffer([[1]]))
-    const failedWorker = workers[0]
+    ['', 'The audio separation worker stopped unexpectedly.'],
+  ])(
+    'rejects all pending work after a worker failure with message %#',
+    async (message, expected) => {
+      const { separateAudioStems } = await loadModule()
+      const first = separateAudioStems(createAudioBuffer([[0]]))
+      const second = separateAudioStems(createAudioBuffer([[1]]))
+      const failedWorker = workers[0]
 
-    failedWorker?.dispatchError(message)
+      failedWorker?.dispatchError(message)
 
-    await expect(first).rejects.toThrow(expected)
-    await expect(second).rejects.toThrow(expected)
-    expect(failedWorker?.terminate).toHaveBeenCalledOnce()
+      await expect(first).rejects.toThrow(expected)
+      await expect(second).rejects.toThrow(expected)
+      expect(failedWorker?.terminate).toHaveBeenCalledOnce()
 
-    const replacement = separateVocalStem(createAudioBuffer([[0.5]]))
-    expect(workers).toHaveLength(2)
-    const replacementBlob = new Blob(['replacement'])
-    workers[1]?.dispatchMessage({ type: 'result', requestId: 3, blob: replacementBlob })
-    await expect(replacement).resolves.toBe(replacementBlob)
-  })
+      const replacement = separateAudioStems(createAudioBuffer([[0.5]]))
+      expect(workers).toHaveLength(2)
+      const replacementStems = createStemBlobs('replacement')
+      workers[1]?.dispatchMessage({ type: 'result', requestId: 3, stems: replacementStems })
+      await expect(replacement).resolves.toBe(replacementStems)
+    },
+  )
 })
+
+function createStemBlobs(prefix: string) {
+  return {
+    bass: new Blob([`${prefix} bass`]),
+    drums: new Blob([`${prefix} drums`]),
+    other: new Blob([`${prefix} other`]),
+    vocals: new Blob([`${prefix} vocals`]),
+  }
+}
