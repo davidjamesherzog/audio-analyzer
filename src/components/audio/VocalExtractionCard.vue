@@ -14,6 +14,27 @@
         minutes, depending on the track and your device.
       </q-banner>
 
+      <div v-if="nativeSixStemAvailable" class="native-poc">
+        <div>
+          <strong>Electron six-stem proof of concept</strong>
+          <p>Choose a local WAV or MP3 and output directory to run the native helper.</p>
+        </div>
+        <q-btn
+          data-testid="native-six-stem-button"
+          color="secondary"
+          icon="science"
+          label="Run native six-stem proof of concept"
+          no-caps
+          outline
+          :loading="isRunningNativePoc"
+          :disable="isRunningNativePoc"
+          @click="runNativeSixStemPoc"
+        />
+        <q-banner v-if="nativePocMessage" data-testid="native-poc-message" rounded>
+          {{ nativePocMessage }}
+        </q-banner>
+      </div>
+
       <fieldset class="stem-selection" :disabled="isExtracting">
         <legend>Tracks to separate</legend>
         <p>Choose the tracks you want before starting separation.</p>
@@ -118,8 +139,31 @@ const availableStems: Array<{ label: string; name: StemName }> = [
   { label: 'Other instruments', name: 'other' },
 ]
 const selectedStemNames = ref<StemName[]>(availableStems.map(({ name }) => name))
+const isRunningNativePoc = ref(false)
+const nativePocMessage = ref('')
+const nativeSixStemAvailable = typeof window !== 'undefined' && Boolean(window.sixStemPoc)
 const exportButtonLabel = computed(() => {
   const count = props.stems.length
   return `Download ${count} selected ${count === 1 ? 'track' : 'tracks'}`
 })
+
+async function runNativeSixStemPoc() {
+  if (!window.sixStemPoc) return
+
+  nativePocMessage.value = ''
+  isRunningNativePoc.value = true
+  try {
+    const result = await window.sixStemPoc.run()
+    if (result.error) {
+      nativePocMessage.value = result.error
+    } else if (result.outputDirectory) {
+      nativePocMessage.value = `Six stems written to ${result.outputDirectory}`
+    }
+  } catch (error) {
+    nativePocMessage.value =
+      error instanceof Error ? error.message : 'Native six-stem separation failed.'
+  } finally {
+    isRunningNativePoc.value = false
+  }
+}
 </script>

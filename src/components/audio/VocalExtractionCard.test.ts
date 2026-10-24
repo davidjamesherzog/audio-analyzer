@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 
 import { mount } from '@vue/test-utils'
-import { describe, expect, test } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vitest'
 
 import VocalExtractionCard from './VocalExtractionCard.vue'
 
@@ -43,6 +43,10 @@ function mountCard(props: Partial<InstanceType<typeof VocalExtractionCard>['$pro
     },
   })
 }
+
+afterEach(() => {
+  delete window.sixStemPoc
+})
 
 describe('VocalExtractionCard', () => {
   test('renders its explanation and idle extraction action', async () => {
@@ -191,5 +195,35 @@ describe('VocalExtractionCard', () => {
     expect(exportButton?.props('label')).toBe('Download 2 selected tracks')
     await exportButton?.trigger('click')
     expect(wrapper.emitted('export')).toEqual([[['drums', 'other']]])
+  })
+
+  test('runs the native six-stem proof of concept only when Electron exposes it', async () => {
+    const run = vi.fn().mockResolvedValue({
+      canceled: false,
+      outputDirectory: '/music/six-stems',
+    })
+    window.sixStemPoc = { run }
+    const wrapper = mountCard()
+
+    await wrapper.get('[data-testid="native-six-stem-button"]').trigger('click')
+    await vi.waitFor(() => expect(run).toHaveBeenCalledOnce())
+
+    expect(wrapper.get('[data-testid="native-poc-message"]').text()).toContain(
+      '/music/six-stems',
+    )
+  })
+
+  test('surfaces native helper failures', async () => {
+    window.sixStemPoc = {
+      run: vi.fn().mockResolvedValue({ canceled: false, error: 'Python 3.10 is required.' }),
+    }
+    const wrapper = mountCard()
+
+    await wrapper.get('[data-testid="native-six-stem-button"]').trigger('click')
+    await vi.waitFor(() =>
+      expect(wrapper.get('[data-testid="native-poc-message"]').text()).toBe(
+        'Python 3.10 is required.',
+      ),
+    )
   })
 })
