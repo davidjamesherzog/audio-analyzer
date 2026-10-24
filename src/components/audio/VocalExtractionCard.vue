@@ -74,9 +74,22 @@
           using the native Demucs helper. The first run downloads and caches its model.
         </q-banner>
         <p>
-          You will choose a WAV or MP3 source and an output folder. All six stems are written to
-          that folder when processing finishes.
+          Choose the tracks you want, then choose a WAV or MP3 source and an output folder.
         </p>
+        <fieldset class="stem-selection" :disabled="isRunningAdvancedSeparation">
+          <legend>Tracks to separate</legend>
+          <p>Choose one or more of the six available tracks.</p>
+          <div class="stem-selection__options">
+            <q-checkbox
+              v-for="stem in advancedStems"
+              :key="stem.name"
+              v-model="selectedAdvancedStemNames"
+              :data-testid="`advanced-stem-selector-${stem.name}`"
+              :label="stem.label"
+              :val="stem.name"
+            />
+          </div>
+        </fieldset>
         <q-btn
           data-testid="advanced-six-stem-button"
           color="secondary"
@@ -85,7 +98,7 @@
           no-caps
           unelevated
           :loading="isRunningAdvancedSeparation"
-          :disable="isRunningAdvancedSeparation"
+          :disable="isRunningAdvancedSeparation || selectedAdvancedStemNames.length === 0"
           @click="runAdvancedSeparation"
         />
         <q-banner v-if="advancedMessage" data-testid="advanced-separation-message" rounded>
@@ -162,6 +175,15 @@ const availableStems: Array<{ label: string; name: StemName }> = [
   { label: 'Other instruments', name: 'other' },
 ]
 const selectedStemNames = ref<StemName[]>(availableStems.map(({ name }) => name))
+const advancedStems: Array<{ label: string; name: SixStemName }> = [
+  { label: 'Vocals', name: 'vocals' },
+  { label: 'Drums', name: 'drums' },
+  { label: 'Bass', name: 'bass' },
+  { label: 'Guitar', name: 'guitar' },
+  { label: 'Piano', name: 'piano' },
+  { label: 'Other instruments', name: 'other' },
+]
+const selectedAdvancedStemNames = ref<SixStemName[]>(advancedStems.map(({ name }) => name))
 const nativeSixStemAvailable = typeof window !== 'undefined' && Boolean(window.sixStemSeparation)
 const separationMode = ref<'advanced' | 'basic'>('basic')
 const isRunningAdvancedSeparation = ref(false)
@@ -190,11 +212,11 @@ async function runAdvancedSeparation() {
   advancedMessage.value = ''
   isRunningAdvancedSeparation.value = true
   try {
-    const result = await window.sixStemSeparation.run()
+    const result = await window.sixStemSeparation.run(selectedAdvancedStemNames.value)
     if (result.error) {
       advancedMessage.value = result.error
     } else if (result.outputDirectory) {
-      advancedMessage.value = `Six stems written to ${result.outputDirectory}`
+      advancedMessage.value = `Selected stems written to ${result.outputDirectory}`
     }
   } catch (error) {
     advancedMessage.value =

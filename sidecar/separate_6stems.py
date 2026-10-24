@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Electron proof of concept: separate one local WAV or MP3 into six HTDemucs stems."""
+"""Separate one local WAV or MP3 into selected HTDemucs six-stem tracks."""
 
 from __future__ import annotations
 
@@ -12,6 +12,13 @@ def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("input", type=Path, help="Path to one local WAV or MP3 file")
     parser.add_argument("output", type=Path, help="Directory that will receive the six WAV stems")
+    parser.add_argument(
+        "--stems",
+        nargs="+",
+        choices=("vocals", "drums", "bass", "guitar", "piano", "other"),
+        required=True,
+        help="One or more stems to write",
+    )
     return parser.parse_args()
 
 
@@ -44,8 +51,9 @@ def main() -> int:
         model="htdemucs_6s",
         precision="fp16weights",
         output_format="wav",
+        stems=arguments.stems,
     )
-    print("Six-stem separation complete.", flush=True)
+    print(f"Selected stems complete: {', '.join(arguments.stems)}.", flush=True)
     return 0
 
 

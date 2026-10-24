@@ -12,8 +12,10 @@ interface SixStemSeparationResult {
   outputDirectory?: string
 }
 
+type SixStemName = 'bass' | 'drums' | 'guitar' | 'other' | 'piano' | 'vocals'
+
 interface Window {
   sixStemSeparation?: {
-    run: () => Promise<SixStemSeparationResult>
+    run: (stemNames: SixStemName[]) => Promise<SixStemSeparationResult>
   }
 }

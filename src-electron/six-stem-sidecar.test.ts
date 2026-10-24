@@ -9,7 +9,11 @@ const mocks = vi.hoisted(() => ({
 vi.mock('node:child_process', () => ({ spawn: mocks.spawn }))
 vi.mock('node:fs/promises', () => ({ access: mocks.access, mkdir: mocks.mkdir }))
 
-import { resolveSidecarDirectory, runSixStemSidecar } from './six-stem-sidecar'
+import {
+  resolveSidecarDirectory,
+  runSixStemSidecar,
+  type SixStemName,
+} from './six-stem-sidecar'
 
 function createChildProcess(exitCode: number | null = 0, stdoutText = '', stderrText = '') {
   const childListeners = new Map<string, (value: unknown) => void>()
@@ -47,6 +51,7 @@ const options = {
   outputDirectory: '/music/stems',
   pythonExecutable: '/project/sidecar/.venv/bin/python',
   scriptPath: '/project/sidecar/separate_6stems.py',
+  stemNames: ['vocals', 'drums', 'bass', 'guitar', 'piano', 'other'] as SixStemName[],
 }
 
 beforeEach(() => {
@@ -82,7 +87,18 @@ describe('runSixStemSidecar', () => {
     expect(mocks.mkdir).toHaveBeenCalledWith('/music/stems', { recursive: true })
     expect(mocks.spawn).toHaveBeenCalledWith(
       '/project/sidecar/.venv/bin/python',
-      ['/project/sidecar/separate_6stems.py', '/music/song.wav', '/music/stems'],
+      [
+        '/project/sidecar/separate_6stems.py',
+        '/music/song.wav',
+        '/music/stems',
+        '--stems',
+        'vocals',
+        'drums',
+        'bass',
+        'guitar',
+        'piano',
+        'other',
+      ],
       { shell: false, stdio: ['ignore', 'pipe', 'pipe'] },
     )
   })
@@ -94,7 +110,13 @@ describe('runSixStemSidecar', () => {
 
     expect(mocks.spawn).toHaveBeenCalledWith(
       options.pythonExecutable,
-      [options.scriptPath, '/music/song.MP3', options.outputDirectory],
+      [
+        options.scriptPath,
+        '/music/song.MP3',
+        options.outputDirectory,
+        '--stems',
+        ...options.stemNames,
+      ],
       expect.any(Object),
     )
   })
@@ -103,6 +125,16 @@ describe('runSixStemSidecar', () => {
     await expect(runSixStemSidecar({ ...options, inputPath: '/music/song.flac' })).rejects.toThrow(
       'accepts WAV and MP3 files only',
     )
+    expect(mocks.spawn).not.toHaveBeenCalled()
+  })
+
+  test.each([
+    [[], 'at least one valid stem'],
+    [['vocals', 'noise'], 'at least one valid stem'],
+  ])('rejects an invalid stem selection %#', async (stemNames, expectedMessage) => {
+    await expect(
+      runSixStemSidecar({ ...options, stemNames: stemNames as SixStemName[] }),
+    ).rejects.toThrow(expectedMessage)
     expect(mocks.spawn).not.toHaveBeenCalled()
   })
 

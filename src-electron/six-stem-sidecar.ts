@@ -7,7 +7,19 @@ export interface SixStemSidecarOptions {
   outputDirectory: string
   pythonExecutable: string
   scriptPath: string
+  stemNames: SixStemName[]
 }
+
+export type SixStemName = 'bass' | 'drums' | 'guitar' | 'other' | 'piano' | 'vocals'
+
+const supportedStemNames = new Set<SixStemName>([
+  'bass',
+  'drums',
+  'guitar',
+  'other',
+  'piano',
+  'vocals',
+])
 
 export interface SixStemSidecarResult {
   outputDirectory: string
@@ -34,6 +46,12 @@ export async function runSixStemSidecar(
   if (!supportedExtensions.has(path.extname(options.inputPath).toLowerCase())) {
     throw new Error('Advanced six-stem separation accepts WAV and MP3 files only.')
   }
+  if (
+    options.stemNames.length === 0 ||
+    options.stemNames.some((stemName) => !supportedStemNames.has(stemName))
+  ) {
+    throw new Error('Choose at least one valid stem for advanced separation.')
+  }
 
   await Promise.all([access(options.inputPath), access(options.scriptPath)])
   await mkdir(options.outputDirectory, { recursive: true })
@@ -41,7 +59,13 @@ export async function runSixStemSidecar(
   return new Promise((resolve, reject) => {
     const child = spawn(
       options.pythonExecutable,
-      [options.scriptPath, options.inputPath, options.outputDirectory],
+      [
+        options.scriptPath,
+        options.inputPath,
+        options.outputDirectory,
+        '--stems',
+        ...options.stemNames,
+      ],
       { shell: false, stdio: ['ignore', 'pipe', 'pipe'] },
     )
     let stdout = ''

@@ -5,7 +5,11 @@ import path from 'path'
 import os from 'os'
 import { fileURLToPath } from 'url'
 
-import { resolveSidecarDirectory, runSixStemSidecar } from './six-stem-sidecar'
+import {
+  resolveSidecarDirectory,
+  runSixStemSidecar,
+  type SixStemName,
+} from './six-stem-sidecar'
 
 // needed in case process is undefined under Linux
 const platform = process.platform || os.platform()
@@ -14,7 +18,7 @@ const currentDir = fileURLToPath(new URL('.', import.meta.url))
 
 let mainWindow: BrowserWindow | undefined
 
-ipcMain.handle('six-stem-separation:run', async () => {
+ipcMain.handle('six-stem-separation:run', async (_event, stemNames: SixStemName[]) => {
   const input = await dialog.showOpenDialog({
     filters: [{ name: 'WAV or MP3 audio', extensions: ['wav', 'mp3'] }],
     properties: ['openFile'],
@@ -48,6 +52,7 @@ ipcMain.handle('six-stem-separation:run', async () => {
       outputDirectory: output.filePaths[0],
       pythonExecutable,
       scriptPath: path.join(sidecarDirectory, 'separate_6stems.py'),
+      stemNames,
     })
     return { canceled: false, outputDirectory: result.outputDirectory }
   } catch (error) {

@@ -235,10 +235,48 @@ describe('VocalExtractionCard', () => {
 
     await wrapper.get('[data-testid="advanced-six-stem-button"]').trigger('click')
     await vi.waitFor(() => expect(run).toHaveBeenCalledOnce())
+    expect(run).toHaveBeenCalledWith([
+      'vocals',
+      'drums',
+      'bass',
+      'guitar',
+      'piano',
+      'other',
+    ])
 
     expect(wrapper.get('[data-testid="advanced-separation-message"]').text()).toContain(
       '/music/six-stems',
     )
+  })
+
+  test('runs advanced separation for only the checked tracks and requires one track', async () => {
+    const run = vi.fn().mockResolvedValue({ canceled: true })
+    window.sixStemSeparation = { run }
+    const wrapper = mountCard()
+    await wrapper.findAll('.q-option-group input')[1]?.setValue(true)
+    const checkboxes = wrapper.findAllComponents({ name: 'QCheckbox' })
+    const button = wrapper.getComponent({ name: 'QBtn' })
+
+    expect(checkboxes).toHaveLength(6)
+    expect(checkboxes.map((checkbox) => checkbox.props('label'))).toEqual([
+      'Vocals',
+      'Drums',
+      'Bass',
+      'Guitar',
+      'Piano',
+      'Other instruments',
+    ])
+
+    await checkboxes[3]?.get('input').setValue(false)
+    await checkboxes[4]?.get('input').setValue(false)
+    await button.trigger('click')
+
+    expect(run).toHaveBeenCalledWith(['vocals', 'drums', 'bass', 'other'])
+
+    for (const checkbox of checkboxes.filter((_, index) => ![3, 4].includes(index))) {
+      await checkbox.get('input').setValue(false)
+    }
+    expect(button.props('disable')).toBe(true)
   })
 
   test('surfaces native helper failures', async () => {
