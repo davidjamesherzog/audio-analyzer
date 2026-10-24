@@ -58,9 +58,9 @@ python3.10 --version
 The Intel macOS pin is conditional, so Apple silicon, Linux, and Windows continue to use the ONNX
 Runtime version selected by `demucs-onnx`.
 
-In the Electron app, select **Run native six-stem proof of concept**, choose one WAV or MP3, and
-choose an output directory. The first run downloads and caches the model. You can override the
-interpreter with `AUDIO_ANALYZER_PYTHON=/absolute/path/to/python`.
+In the Electron app, choose **Advanced · 6 stems**, select **Separate 6 stems**, choose one WAV or
+MP3, and choose an output directory. The first run downloads and caches the model. You can override
+the interpreter with `AUDIO_ANALYZER_PYTHON=/absolute/path/to/python`.
 
 This milestone intentionally does not include progress, cancellation, selected-stem filtering, or
 packaging the Python runtime and model.

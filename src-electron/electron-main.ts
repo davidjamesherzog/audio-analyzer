@@ -14,7 +14,7 @@ const currentDir = fileURLToPath(new URL('.', import.meta.url))
 
 let mainWindow: BrowserWindow | undefined
 
-ipcMain.handle('six-stem-poc:run', async () => {
+ipcMain.handle('six-stem-separation:run', async () => {
   const input = await dialog.showOpenDialog({
     filters: [{ name: 'WAV or MP3 audio', extensions: ['wav', 'mp3'] }],
     properties: ['openFile'],

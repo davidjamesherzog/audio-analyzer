@@ -32,7 +32,7 @@ export async function runSixStemSidecar(
 ): Promise<SixStemSidecarResult> {
   const supportedExtensions = new Set(['.mp3', '.wav'])
   if (!supportedExtensions.has(path.extname(options.inputPath).toLowerCase())) {
-    throw new Error('The native six-stem proof of concept accepts WAV and MP3 files only.')
+    throw new Error('Advanced six-stem separation accepts WAV and MP3 files only.')
   }
 
   await Promise.all([access(options.inputPath), access(options.scriptPath)])

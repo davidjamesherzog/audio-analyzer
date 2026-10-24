@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
-contextBridge.exposeInMainWorld('sixStemPoc', {
-  run: () => ipcRenderer.invoke('six-stem-poc:run'),
+contextBridge.exposeInMainWorld('sixStemSeparation', {
+  run: () => ipcRenderer.invoke('six-stem-separation:run'),
 })

@@ -6,14 +6,14 @@ declare namespace NodeJS {
   }
 }
 
-interface SixStemPocResult {
+interface SixStemSeparationResult {
   canceled: boolean
   error?: string
   outputDirectory?: string
 }
 
 interface Window {
-  sixStemPoc?: {
-    run: () => Promise<SixStemPocResult>
+  sixStemSeparation?: {
+    run: () => Promise<SixStemSeparationResult>
   }
 }
