@@ -5,3 +5,15 @@ declare namespace NodeJS {
     VUE_ROUTER_BASE: string | undefined
   }
 }
+
+interface SixStemPocResult {
+  canceled: boolean
+  error?: string
+  outputDirectory?: string
+}
+
+interface Window {
+  sixStemPoc?: {
+    run: () => Promise<SixStemPocResult>
+  }
+}

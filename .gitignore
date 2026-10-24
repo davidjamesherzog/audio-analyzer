@@ -1,6 +1,7 @@
 .DS_Store
 .thumbs.db
 node_modules
+/sidecar/.venv
 
 # Quasar core related directories
 .quasar

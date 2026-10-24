@@ -193,6 +193,21 @@ body {
   color: #58351f;
 }
 
+.native-poc {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding: 16px;
+  background: rgba(38, 70, 83, 0.06);
+  border: 1px solid rgba(38, 70, 83, 0.12);
+  border-radius: 18px;
+}
+
+.native-poc p {
+  margin: 4px 0 0;
+  color: #5e6e78;
+}
+
 .stem-selection {
   margin: 0 0 18px;
   padding: 0;

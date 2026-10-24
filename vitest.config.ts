@@ -11,9 +11,9 @@ export default defineConfig({
     },
   },
   test: {
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'src-electron/**/*.test.ts'],
     coverage: {
-      include: ['src/**/*.{ts,tsx,vue}'],
+      include: ['src/**/*.{ts,tsx,vue}', 'src-electron/six-stem-sidecar.ts'],
       exclude: ['src/**/*.test.ts', 'src/**/__tests__/**'],
       reportsDirectory: './coverage/unit',
     },

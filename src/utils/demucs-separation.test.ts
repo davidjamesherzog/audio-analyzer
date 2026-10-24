@@ -136,6 +136,24 @@ describe('demucs separation', () => {
     await expect(promise).rejects.toThrow('Separation failed')
   })
 
+  test('stops an unresponsive worker when model initialization times out', async () => {
+    vi.useFakeTimers()
+    try {
+      const { separateAudioStems } = await loadModule()
+      const promise = separateAudioStems(createAudioBuffer([[0]]))
+      const rejection = expect(promise).rejects.toThrow(
+        'The separation model could not initialize within five minutes.',
+      )
+
+      await vi.advanceTimersByTimeAsync(5 * 60 * 1000)
+
+      await rejection
+      expect(workers[0]?.terminate).toHaveBeenCalledOnce()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   test.each([
     ['Worker crashed', 'Worker crashed'],
     ['', 'The audio separation worker stopped unexpectedly.'],
