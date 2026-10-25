@@ -1,7 +1,15 @@
-import { app, BrowserWindow } from 'electron'
+import { existsSync } from 'node:fs'
+
+import { app, BrowserWindow, dialog, ipcMain } from 'electron'
 import path from 'path'
 import os from 'os'
 import { fileURLToPath } from 'url'
+
+import {
+  resolveSidecarDirectory,
+  runSixStemSidecar,
+  type SixStemName,
+} from './six-stem-sidecar'
 
 // needed in case process is undefined under Linux
 const platform = process.platform || os.platform()
@@ -9,6 +17,51 @@ const platform = process.platform || os.platform()
 const currentDir = fileURLToPath(new URL('.', import.meta.url))
 
 let mainWindow: BrowserWindow | undefined
+
+ipcMain.handle('six-stem-separation:run', async (_event, stemNames: SixStemName[]) => {
+  const input = await dialog.showOpenDialog({
+    filters: [{ name: 'WAV or MP3 audio', extensions: ['wav', 'mp3'] }],
+    properties: ['openFile'],
+    title: 'Choose a WAV or MP3 for native six-stem separation',
+  })
+  if (input.canceled || !input.filePaths[0]) return { canceled: true }
+
+  const output = await dialog.showOpenDialog({
+    properties: ['openDirectory', 'createDirectory'],
+    title: 'Choose an output directory for the six stems',
+  })
+  if (output.canceled || !output.filePaths[0]) return { canceled: true }
+
+  const sidecarDirectory = resolveSidecarDirectory({
+    isDevelopment: Boolean(process.env.DEV),
+    processWorkingDirectory: process.cwd(),
+    resourcesPath: process.resourcesPath,
+  })
+  const environmentPython = path.join(
+    sidecarDirectory,
+    '.venv',
+    platform === 'win32' ? 'Scripts/python.exe' : 'bin/python',
+  )
+  const pythonExecutable =
+    process.env.AUDIO_ANALYZER_PYTHON ??
+    (existsSync(environmentPython) ? environmentPython : platform === 'win32' ? 'python' : 'python3')
+
+  try {
+    const result = await runSixStemSidecar({
+      inputPath: input.filePaths[0],
+      outputDirectory: output.filePaths[0],
+      pythonExecutable,
+      scriptPath: path.join(sidecarDirectory, 'separate_6stems.py'),
+      stemNames,
+    })
+    return { canceled: false, outputDirectory: result.outputDirectory }
+  } catch (error) {
+    return {
+      canceled: false,
+      error: error instanceof Error ? error.message : 'Native six-stem separation failed.',
+    }
+  }
+})
 
 async function createWindow() {
   /**

@@ -7,6 +7,15 @@ An audo analyzer project that allows you to upload an audio file and split it be
 - Bass
 - Other (guitars and other instruments)
 
+## Native six-stem sidecar
+
+The Electron app's Advanced separation option uses a local Python sidecar to run the native
+six-stem Demucs model. It adds dedicated guitar and piano tracks to the four basic stems and writes
+only the selected WAV outputs to a local folder; audio is never uploaded to a server.
+
+See the [sidecar setup guide](sidecar/README.md) for supported Python versions, environment setup,
+dependencies, and development instructions.
+
 ## Install the dependencies
 
 ```bash

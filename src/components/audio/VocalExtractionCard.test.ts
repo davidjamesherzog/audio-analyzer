@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 
 import { mount } from '@vue/test-utils'
-import { describe, expect, test } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vitest'
 
 import VocalExtractionCard from './VocalExtractionCard.vue'
 
@@ -39,23 +39,37 @@ function mountCard(props: Partial<InstanceType<typeof VocalExtractionCard>['$pro
           props: ['indeterminate', 'value'],
           template: '<div class="q-linear-progress" />',
         },
+        QOptionGroup: {
+          name: 'QOptionGroup',
+          props: ['disable', 'modelValue', 'options'],
+          emits: ['update:modelValue'],
+          template:
+            '<div class="q-option-group"><label v-for="option in options" :key="option.value"><input type="radio" :value="option.value" :checked="modelValue === option.value" :disabled="option.disable" @change="$emit(\'update:modelValue\', option.value)" />{{ option.label }}<small>{{ option.caption }}</small></label></div>',
+        },
       },
     },
   })
 }
+
+afterEach(() => {
+  delete window.sixStemSeparation
+})
 
 describe('VocalExtractionCard', () => {
   test('renders its explanation and idle extraction action', async () => {
     const wrapper = mountCard()
     const button = wrapper.getComponent({ name: 'QBtn' })
 
-    expect(wrapper.get('h2').text()).toBe('Separated stems')
+    expect(wrapper.get('h2').text()).toBe('Source separation')
+    expect(wrapper.get('[data-testid="separation-mode-selector"]').text()).toContain(
+      'Basic · 4 stems',
+    )
     expect(wrapper.get('.vocal-note').text()).toContain(
       'The first extraction downloads an approximately 172 MB model.',
     )
     expect(button.props()).toMatchObject({
       disable: false,
-      label: 'Separate stems',
+      label: 'Separate 4 stems',
       loading: false,
     })
     expect(wrapper.find('[data-testid="vocal-progress"]').exists()).toBe(false)
@@ -191,5 +205,121 @@ describe('VocalExtractionCard', () => {
     expect(exportButton?.props('label')).toBe('Download 2 selected tracks')
     await exportButton?.trigger('click')
     expect(wrapper.emitted('export')).toEqual([[['drums', 'other']]])
+  })
+
+  test('offers but disables advanced separation outside Electron', () => {
+    const wrapper = mountCard()
+    const options = wrapper.getComponent({ name: 'QOptionGroup' }).props('options')
+
+    expect(options).toEqual([
+      expect.objectContaining({ label: 'Basic · 4 stems', value: 'basic' }),
+      expect.objectContaining({ label: 'Advanced · 6 stems', value: 'advanced', disable: true }),
+    ])
+    expect(wrapper.get('.separation-mode__availability').text()).toContain('desktop app')
+    expect(wrapper.find('[data-testid="advanced-separation-controls"]').exists()).toBe(false)
+  })
+
+  test('runs advanced six-stem separation when Electron exposes it', async () => {
+    const run = vi.fn().mockResolvedValue({
+      canceled: false,
+      outputDirectory: '/music/six-stems',
+    })
+    window.sixStemSeparation = { run }
+    const wrapper = mountCard()
+    const modeInputs = wrapper.findAll('.q-option-group input')
+
+    await modeInputs[1]?.setValue(true)
+    expect(wrapper.find('[data-testid="basic-separation-controls"]').exists()).toBe(false)
+    expect(wrapper.get('.advanced-note').text()).toContain('guitar, piano')
+    expect(wrapper.find('[data-testid="stem-results"]').exists()).toBe(false)
+
+    await wrapper.get('[data-testid="advanced-six-stem-button"]').trigger('click')
+    await vi.waitFor(() => expect(run).toHaveBeenCalledOnce())
+    expect(run).toHaveBeenCalledWith([
+      'vocals',
+      'drums',
+      'bass',
+      'guitar',
+      'piano',
+      'other',
+    ])
+
+    expect(wrapper.get('[data-testid="advanced-separation-message"]').text()).toContain(
+      '/music/six-stems',
+    )
+  })
+
+  test('runs advanced separation for only the checked tracks and requires one track', async () => {
+    const run = vi.fn().mockResolvedValue({ canceled: true })
+    window.sixStemSeparation = { run }
+    const wrapper = mountCard()
+    await wrapper.findAll('.q-option-group input')[1]?.setValue(true)
+    const checkboxes = wrapper.findAllComponents({ name: 'QCheckbox' })
+    const button = wrapper.getComponent({ name: 'QBtn' })
+
+    expect(checkboxes).toHaveLength(6)
+    expect(checkboxes.map((checkbox) => checkbox.props('label'))).toEqual([
+      'Vocals',
+      'Drums',
+      'Bass',
+      'Guitar',
+      'Piano',
+      'Other instruments',
+    ])
+
+    await checkboxes[3]?.get('input').setValue(false)
+    await checkboxes[4]?.get('input').setValue(false)
+    await button.trigger('click')
+
+    expect(run).toHaveBeenCalledWith(['vocals', 'drums', 'bass', 'other'])
+
+    for (const checkbox of checkboxes.filter((_, index) => ![3, 4].includes(index))) {
+      await checkbox.get('input').setValue(false)
+    }
+    expect(button.props('disable')).toBe(true)
+  })
+
+  test('surfaces native helper failures', async () => {
+    window.sixStemSeparation = {
+      run: vi.fn().mockResolvedValue({ canceled: false, error: 'Python 3.10 is required.' }),
+    }
+    const wrapper = mountCard()
+    await wrapper.findAll('.q-option-group input')[1]?.setValue(true)
+
+    await wrapper.get('[data-testid="advanced-six-stem-button"]').trigger('click')
+    await vi.waitFor(() =>
+      expect(wrapper.get('[data-testid="advanced-separation-message"]').text()).toBe(
+        'Python 3.10 is required.',
+      ),
+    )
+  })
+
+  test.each([
+    [new Error('Native helper disconnected.'), 'Native helper disconnected.'],
+    ['unstructured failure', 'Native six-stem separation failed.'],
+  ])('surfaces rejected advanced separation %#', async (failure, expectedMessage) => {
+    window.sixStemSeparation = { run: vi.fn().mockRejectedValue(failure) }
+    const wrapper = mountCard()
+    await wrapper.findAll('.q-option-group input')[1]?.setValue(true)
+
+    await wrapper.get('[data-testid="advanced-six-stem-button"]').trigger('click')
+
+    await vi.waitFor(() =>
+      expect(wrapper.get('[data-testid="advanced-separation-message"]').text()).toBe(
+        expectedMessage,
+      ),
+    )
+  })
+
+  test('returns to idle without a message when advanced separation is canceled', async () => {
+    window.sixStemSeparation = { run: vi.fn().mockResolvedValue({ canceled: true }) }
+    const wrapper = mountCard()
+    await wrapper.findAll('.q-option-group input')[1]?.setValue(true)
+
+    await wrapper.get('[data-testid="advanced-six-stem-button"]').trigger('click')
+    await vi.waitFor(() => expect(window.sixStemSeparation?.run).toHaveBeenCalledOnce())
+
+    expect(wrapper.find('[data-testid="advanced-separation-message"]').exists()).toBe(false)
+    expect(wrapper.getComponent({ name: 'QBtn' }).props('loading')).toBe(false)
   })
 })

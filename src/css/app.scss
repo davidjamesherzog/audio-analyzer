@@ -193,6 +193,37 @@ body {
   color: #58351f;
 }
 
+.separation-mode {
+  display: grid;
+  margin-bottom: 18px;
+  padding: 16px;
+  background: rgba(38, 70, 83, 0.06);
+  border: 1px solid rgba(38, 70, 83, 0.12);
+  border-radius: 18px;
+}
+
+.separation-mode__availability {
+  margin: 8px 0 0 32px;
+  color: #5e6e78;
+  font-size: 0.86rem;
+}
+
+.advanced-separation {
+  display: grid;
+  gap: 16px;
+}
+
+.advanced-separation p {
+  margin: 0;
+  color: #5e6e78;
+  line-height: 1.55;
+}
+
+.advanced-note {
+  background: rgba(38, 70, 83, 0.08);
+  color: #233742;
+}
+
 .stem-selection {
   margin: 0 0 18px;
   padding: 0;

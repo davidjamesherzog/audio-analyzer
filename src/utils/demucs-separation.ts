@@ -15,6 +15,7 @@ type WorkerResponse =
   | { type: 'error'; requestId: number; message: string }
 
 interface PendingRequest {
+  cancelModelTimeout: () => void
   onProgress: ProgressCallback
   reject: (reason: Error) => void
   resolve: (stems: StemBlobs) => void
@@ -23,6 +24,7 @@ interface PendingRequest {
 let worker: Worker | null = null
 let nextRequestId = 0
 const pendingRequests = new Map<number, PendingRequest>()
+const modelInitializationTimeoutMs = 5 * 60 * 1000
 
 /** Runs HTDemucs in a worker and returns each stereo stem as a WAV. */
 export function separateAudioStems(
@@ -36,7 +38,30 @@ export function separateAudioStems(
   ).slice()
 
   return new Promise((resolve, reject) => {
-    pendingRequests.set(requestId, { onProgress, reject, resolve })
+    const timeout = globalThis.setTimeout(() => {
+      pendingRequests.delete(requestId)
+      worker?.terminate()
+      worker = null
+      reject(
+        new Error(
+          'The separation model could not initialize within five minutes. Close other memory-heavy applications and try again.',
+        ),
+      )
+    }, modelInitializationTimeoutMs)
+    pendingRequests.set(requestId, {
+      cancelModelTimeout() {
+        globalThis.clearTimeout(timeout)
+      },
+      onProgress,
+      reject(reason) {
+        globalThis.clearTimeout(timeout)
+        reject(reason)
+      },
+      resolve(stems) {
+        globalThis.clearTimeout(timeout)
+        resolve(stems)
+      },
+    })
     getWorker().postMessage(
       { type: 'separate', requestId, left, right, sampleRate: audio.sampleRate },
       [left.buffer, right.buffer],
@@ -71,6 +96,9 @@ function handleWorkerMessage(event: MessageEvent<WorkerResponse>) {
   }
 
   if (message.type === 'progress') {
+    if (message.progress.phase === 'separation') {
+      pending.cancelModelTimeout()
+    }
     pending.onProgress(message.progress)
     return
   }

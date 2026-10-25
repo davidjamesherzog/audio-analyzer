@@ -1,0 +1,7 @@
+# Newer ONNX Runtime releases do not publish Intel macOS wheels. Version 1.18.0
+# provides the universal2 CPython wheels needed by Intel Macs and still satisfies
+# demucs-onnx's onnxruntime>=1.17 requirement.
+onnxruntime==1.18.0; sys_platform == 'darwin' and platform_machine == 'x86_64'
+# ONNX Runtime 1.18's native extension was compiled against the NumPy 1.x API.
+numpy<2; sys_platform == 'darwin' and platform_machine == 'x86_64'
+demucs-onnx[mp3]==0.3.0
